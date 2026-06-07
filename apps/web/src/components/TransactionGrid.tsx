@@ -440,7 +440,7 @@ export function TransactionGrid({
                         </tr>
                       );
                     })}
-                    <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700">
+                    <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
                       <td
                         colSpan={colCount - 1}
                         className="px-4 py-2 text-right text-xs font-medium text-gray-600 dark:text-gray-400"
