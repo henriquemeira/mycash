@@ -67,7 +67,32 @@
     "new_amount_placeholder": "0.00",
     "add": "Add",
     "load_more": "Load more",
-    "loading_more": "Loading..."
+    "loading_more": "Loading...",
+    "more_options": "More options",
+    "notes_label": "Note",
+    "notes_placeholder": "Add a note...",
+    "recurrence_label": "Repeat transaction",
+    "no_recurrence": "Do not repeat",
+    "installment": "Installment",
+    "recurring": "Recurring",
+    "installment_count": "Number of installments",
+    "installment_hint": "{{count}} transactions will be created, one for each month.",
+    "recurring_hint": "12 monthly transactions will be created (next 12 months).",
+    "clear_options": "Clear options",
+    "delete": "Delete",
+    "delete_confirm_title": "Delete transaction",
+    "delete_confirm_message": "Delete \"{{description}}\"? This action cannot be undone.",
+    "delete_confirm_cancel": "Cancel",
+    "delete_confirm_ok": "Delete"
+  },
+  "recurrence": {
+    "edit_title": "Edit recurring transaction",
+    "delete_title": "Delete recurring transaction",
+    "explanation": "This transaction is part of a recurring series. Do you want to apply the change only to this one or to all future occurrences?",
+    "edit_single": "Change only this one",
+    "edit_future": "Change from this one onward",
+    "delete_single": "Delete only this one",
+    "delete_future": "Delete from this one onward"
   },
   "months": {
     "1": "January",

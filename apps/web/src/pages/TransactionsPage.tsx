@@ -6,10 +6,12 @@ import {
   type Account,
   type Category,
   type TransactionType,
+  type CreateTransactionData,
 } from "@/lib/api";
 import { MonthSelector } from "@/components/MonthSelector";
 import { BalanceRibbon } from "@/components/BalanceRibbon";
 import { TransactionGrid } from "@/components/TransactionGrid";
+import { RecurrenceModal } from "@/components/RecurrenceModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useTranslation } from "react-i18next";
 
@@ -92,15 +94,7 @@ export function TransactionsPage() {
   );
 
   const handleCreate = useCallback(
-    async (txData: {
-      description: string;
-      amount: number;
-      date: string;
-      dueDate: string;
-      type: TransactionType;
-      accountId: string;
-      categoryId: string;
-    }) => {
+    async (txData: CreateTransactionData) => {
       const category = categories.find((c) => c.id === txData.categoryId);
       const account = accounts.find((a) => a.id === txData.accountId);
 
@@ -114,6 +108,10 @@ export function TransactionsPage() {
         isPaid: false,
         accountId: txData.accountId,
         categoryId: txData.categoryId,
+        recurrenceId: null,
+        installmentNumber: null,
+        totalInstallments: null,
+        notes: txData.notes || null,
         accountName: account?.name,
         categoryName: category?.name,
         categoryColor: category?.color,
@@ -158,8 +156,8 @@ export function TransactionsPage() {
         });
         showToast(t("errors.save_failed_retry"), "error");
       } else if (data?.transaction) {
-        setItems((prev) =>
-          prev.map((item) =>
+        setItems((prev) => {
+          const replaced = prev.map((item) =>
             item.id === optimisticTx.id
               ? {
                   ...data.transaction,
@@ -168,11 +166,66 @@ export function TransactionsPage() {
                   categoryColor: category?.color,
                 }
               : item
-          )
-        );
+          );
+          if (data.createdCount > 1) {
+            fetchData();
+            return replaced;
+          }
+          return replaced;
+        });
+        if (data.createdCount > 1) {
+          fetchData();
+        }
       }
     },
-    [categories, accounts, showToast, t]
+    [categories, accounts, showToast, t, fetchData]
+  );
+
+  const handleDelete = useCallback(
+    async (id: string, scope: "single" | "future") => {
+      const tx = items.find((i) => i.id === id);
+      if (!tx) return;
+
+      setItems((prev) => {
+        if (scope === "future" && tx.recurrenceId) {
+          const dueDate = tx.dueDate;
+          return prev.filter(
+            (item) =>
+              !(item.recurrenceId === tx.recurrenceId && item.dueDate >= dueDate)
+          );
+        }
+        return prev.filter((item) => item.id !== id);
+      });
+
+      setSummary((prev) => {
+        const toRemove = scope === "future" && tx.recurrenceId
+          ? items.filter(
+              (item) =>
+                item.recurrenceId === tx.recurrenceId &&
+                item.dueDate >= tx.dueDate
+            )
+          : [tx];
+        const incomeDiff = toRemove
+          .filter((i) => i.type === "income")
+          .reduce((sum, i) => sum + i.amount, 0);
+        const expenseDiff = toRemove
+          .filter((i) => i.type === "expense")
+          .reduce((sum, i) => sum + Math.abs(i.amount), 0);
+        return {
+          ...prev,
+          income: prev.income - incomeDiff,
+          expense: prev.expense - expenseDiff,
+          balance: prev.balance - incomeDiff + expenseDiff,
+        };
+      });
+
+      const { error } = await api.deleteTransaction(id, scope);
+      if (error) {
+        fetchData();
+        showToast(t("errors.save_failed_retry"), "error");
+      }
+    },
+    [items, fetchData, showToast, t]
   );
 
   const handleMonthChange = (m: number, y: number) => {
@@ -201,6 +254,7 @@ export function TransactionsPage() {
           accounts={accounts}
           onTogglePaid={handleTogglePaid}
           onCreateTransaction={handleCreate}
+          onDeleteTransaction={handleDelete}
           defaultAccountId={defaultAccountId}
         />
       )}

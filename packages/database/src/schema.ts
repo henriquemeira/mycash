@@ -83,6 +83,10 @@ export const transactions = sqliteTable(
     dueDate: text("due_date"),
     type: text("type", { enum: ["income", "expense", "transfer"] }).notNull(),
     isPaid: integer("is_paid", { mode: "boolean" }).default(false).notNull(),
+    recurrenceId: text("recurrence_id"),
+    installmentNumber: integer("installment_number"),
+    totalInstallments: integer("total_installments"),
+    notes: text("notes"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .$defaultFn(() => new Date())
       .notNull(),
@@ -97,5 +101,6 @@ export const transactions = sqliteTable(
       table.date,
       table.deletedAt
     ),
+    index("transactions_recurrence_idx").on(table.recurrenceId),
   ]
 );

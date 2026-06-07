@@ -39,6 +39,8 @@ export interface User {
 
 export type TransactionType = "income" | "expense" | "transfer";
 
+export type RecurrenceType = "installment" | "recurring";
+
 export interface Transaction {
   id: string;
   description: string;
@@ -49,6 +51,10 @@ export interface Transaction {
   isPaid: boolean;
   accountId: string;
   categoryId: string;
+  recurrenceId: string | null;
+  installmentNumber: number | null;
+  totalInstallments: number | null;
+  notes: string | null;
   accountName?: string;
   categoryName?: string;
   categoryColor?: string;
@@ -89,6 +95,34 @@ export interface Category {
   icon: string;
 }
 
+export interface CreateTransactionData {
+  description: string;
+  amount: number;
+  date: string;
+  dueDate: string;
+  type: TransactionType;
+  accountId: string;
+  categoryId: string;
+  notes?: string;
+  recurrence?: {
+    type: RecurrenceType;
+    totalInstallments: number;
+  };
+}
+
+export interface UpdateTransactionData {
+  description?: string;
+  amount?: number;
+  date?: string;
+  dueDate?: string;
+  type?: TransactionType;
+  accountId?: string;
+  categoryId?: string;
+  notes?: string;
+  isPaid?: boolean;
+  scope?: "single" | "future";
+}
+
 export const api = {
   register(email: string, password: string) {
     return request<{ user: User }>("/auth/register", {
@@ -118,19 +152,25 @@ export const api = {
     );
   },
 
-  createTransaction(data: {
-    description: string;
-    amount: number;
-    date: string;
-    dueDate: string;
-    type: TransactionType;
-    accountId: string;
-    categoryId: string;
-  }) {
-    return request<{ transaction: Transaction }>("/transactions", {
+  createTransaction(data: CreateTransactionData) {
+    return request<{ transaction: Transaction; createdCount: number }>("/transactions", {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+
+  updateTransaction(id: string, data: UpdateTransactionData) {
+    return request<{ updatedCount: number | string; scope: string }>(`/transactions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteTransaction(id: string, scope: "single" | "future" = "single") {
+    return request<{ deletedCount: number | string; scope: string }>(
+      `/transactions/${id}?scope=${scope}`,
+      { method: "DELETE" }
+    );
   },
 
   togglePaid(id: string) {

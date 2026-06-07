@@ -7,9 +7,11 @@ import {
   type ColumnDef,
   type Row,
 } from "@tanstack/react-table";
-import { Plus, ChevronDown } from "lucide-react";
-import type { Transaction, Category, Account, TransactionType } from "@/lib/api";
+import { Plus, ChevronDown, ChevronUp, Trash2, X, Repeat, CalendarRange } from "lucide-react";
+import type { Transaction, Category, Account, TransactionType, RecurrenceType, CreateTransactionData } from "@/lib/api";
 import { PaidToggle } from "./PaidToggle";
+import { Modal } from "./Modal";
+import { RecurrenceModal } from "./RecurrenceModal";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -55,20 +57,15 @@ const typeColorClasses = (t: TransactionType) => {
   }
 };
 
+const RECURRENCE_OPTIONS = [2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36, 48];
+
 interface TransactionGridProps {
   items: Transaction[];
   categories: Category[];
   accounts: Account[];
   onTogglePaid: (id: string) => void;
-  onCreateTransaction: (data: {
-    description: string;
-    amount: number;
-    date: string;
-    dueDate: string;
-    type: TransactionType;
-    accountId: string;
-    categoryId: string;
-  }) => void;
+  onCreateTransaction: (data: CreateTransactionData) => Promise<void>;
+  onDeleteTransaction: (id: string, scope: "single" | "future") => Promise<void>;
   defaultAccountId?: string;
 }
 
@@ -78,6 +75,7 @@ export function TransactionGrid({
   accounts,
   onTogglePaid,
   onCreateTransaction,
+  onDeleteTransaction,
   defaultAccountId,
 }: TransactionGridProps) {
   const { t, i18n } = useTranslation();
@@ -90,6 +88,31 @@ export function TransactionGrid({
   const [accountId, setAccountId] = useState(defaultAccountId || "");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType | "none">("none");
+  const [installmentCount, setInstallmentCount] = useState(2);
+
+  const [recurrenceModal, setRecurrenceModal] = useState<{
+    open: boolean;
+    action: "edit" | "delete";
+    transactionId: string;
+    description: string;
+    scope: "single" | "future" | null;
+  }>({
+    open: false,
+    action: "delete",
+    transactionId: "",
+    description: "",
+    scope: null,
+  });
+
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    transactionId: string;
+    description: string;
+  }>({ open: false, transactionId: "", description: "" });
 
   const filteredCategories = categories.filter((cat) => {
     if (type === "transfer") return true;
@@ -104,11 +127,23 @@ export function TransactionGrid({
       {
         accessorKey: "description",
         header: t("transactions.description"),
-        cell: ({ getValue }) => (
-          <span className="text-sm text-gray-900 dark:text-gray-100">
-            {getValue() as string}
-          </span>
-        ),
+        cell: ({ getValue, row }) => {
+          const desc = getValue() as string;
+          const inst = row.original.installmentNumber;
+          const total = row.original.totalInstallments;
+          return (
+            <div className="flex flex-col">
+              <span className="text-sm text-gray-900 dark:text-gray-100">
+                {desc}
+              </span>
+              {row.original.notes && (
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  {row.original.notes}
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         id: "category",
@@ -148,15 +183,33 @@ export function TransactionGrid({
         },
       },
       {
-        id: "paid",
+        id: "recurrence",
+        header: "",
+        size: 32,
+        cell: ({ row }) =>
+          row.original.recurrenceId ? (
+            <Repeat size={14} className="text-gray-400 dark:text-gray-500" />
+          ) : null,
+      },
+      {
+        id: "actions",
         size: 44,
         header: "",
         cell: ({ row }) => (
-          <PaidToggle
-            isPaid={row.original.isPaid}
-            type={row.original.type}
-            onToggle={() => onTogglePaid(row.original.id)}
-          />
+          <div className="flex items-center gap-1">
+            <PaidToggle
+              isPaid={row.original.isPaid}
+              type={row.original.type}
+              onToggle={() => onTogglePaid(row.original.id)}
+            />
+            <button
+              onClick={() => handleDeleteClick(row.original)}
+              className="rounded p-1 text-gray-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
+              title={t("transactions.delete")}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         ),
       },
     ],
@@ -203,6 +256,41 @@ export function TransactionGrid({
     return groups;
   }, [items]);
 
+  const handleDeleteClick = useCallback(
+    (tx: Transaction) => {
+      if (tx.recurrenceId) {
+        setRecurrenceModal({
+          open: true,
+          action: "delete",
+          transactionId: tx.id,
+          description: tx.description,
+          scope: null,
+        });
+      } else {
+        setDeleteConfirm({ open: true, transactionId: tx.id, description: tx.description });
+      }
+    },
+    [onDeleteTransaction]
+  );
+
+  const handleDeleteConfirm = useCallback(
+    async () => {
+      const id = deleteConfirm.transactionId;
+      setDeleteConfirm({ open: false, transactionId: "", description: "" });
+      await onDeleteTransaction(id, "single");
+    },
+    [deleteConfirm, onDeleteTransaction]
+  );
+
+  const handleRecurrenceConfirm = useCallback(
+    async (scope: "single" | "future") => {
+      const modal = recurrenceModal;
+      setRecurrenceModal((prev) => ({ ...prev, open: false }));
+      await onDeleteTransaction(modal.transactionId, scope);
+    },
+    [recurrenceModal, onDeleteTransaction]
+  );
+
   const handleInsert = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
@@ -212,7 +300,7 @@ export function TransactionGrid({
 
       const amountCents = Math.round(parsedAmount * 100);
 
-      onCreateTransaction({
+      const data: CreateTransactionData = {
         description: desc.trim(),
         amount: amountCents,
         date: today,
@@ -220,13 +308,32 @@ export function TransactionGrid({
         type,
         accountId,
         categoryId,
-      });
+        notes: notes.trim() || undefined,
+      };
+
+      if (recurrenceType === "installment") {
+        data.recurrence = {
+          type: "installment",
+          totalInstallments: installmentCount,
+        };
+      } else if (recurrenceType === "recurring") {
+        data.recurrence = {
+          type: "recurring",
+          totalInstallments: 12,
+        };
+      }
+
+      onCreateTransaction(data);
 
       setDesc("");
       setAmount("");
       setCategoryId("");
+      setNotes("");
+      setRecurrenceType("none");
+      setInstallmentCount(2);
+      setShowMoreOptions(false);
     },
-    [desc, amount, dueDate, type, categoryId, accountId, today, onCreateTransaction]
+    [desc, amount, dueDate, type, categoryId, accountId, today, onCreateTransaction, notes, recurrenceType, installmentCount]
   );
 
   const colCount = columns.length;
@@ -236,147 +343,265 @@ export function TransactionGrid({
       <form
         id="quick-add-form"
         onSubmit={handleInsert}
-        className="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
+        className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
       >
-        <div className="flex overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
-          {TYPE_OPTIONS.map((opt) => (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+          <div className="flex overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
+            {TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setType(opt.value);
+                  setCategoryId("");
+                }}
+                className={`px-2 py-1 text-xs font-bold transition-colors ${
+                  type === opt.value
+                    ? typeColorClasses(opt.value)
+                    : "bg-white text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder={t("transactions.new_description_placeholder")}
+            className="min-w-0 flex-1 border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+          />
+
+          <div className="relative">
             <button
-              key={opt.value}
               type="button"
               onClick={() => {
-                setType(opt.value);
-                setCategoryId("");
+                setShowCategoryDropdown(!showCategoryDropdown);
+                setShowAccountDropdown(false);
               }}
-              className={`px-2 py-1 text-xs font-bold transition-colors ${
-                type === opt.value
-                  ? typeColorClasses(opt.value)
-                  : "bg-white text-gray-400 dark:bg-gray-800 dark:text-gray-500"
-              }`}
+              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-          placeholder={t("transactions.new_description_placeholder")}
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
-        />
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowCategoryDropdown(!showCategoryDropdown);
-              setShowAccountDropdown(false);
-            }}
-            className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            {selectedCategory ? (
-              <>
-                <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ backgroundColor: selectedCategory.color }}
-                />
-                {selectedCategory.name}
-              </>
-            ) : (
-              t("transactions.category")
-            )}
-            <ChevronDown size={12} />
-          </button>
-
-          {showCategoryDropdown && (
-            <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
-              {filteredCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    setCategoryId(cat.id);
-                    setShowCategoryDropdown(false);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
+              {selectedCategory ? (
+                <>
                   <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: cat.color }}
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: selectedCategory.color }}
                   />
-                  {cat.name}
-                </button>
-              ))}
-              {filteredCategories.length === 0 && (
-                <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-                  {t("transactions.no_categories")}
-                </div>
+                  {selectedCategory.name}
+                </>
+              ) : (
+                t("transactions.category")
               )}
-            </div>
-          )}
-        </div>
+              <ChevronDown size={12} />
+            </button>
 
-        <div className="relative">
+            {showCategoryDropdown && (
+              <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
+                {filteredCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setCategoryId(cat.id);
+                      setShowCategoryDropdown(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                  >
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    {cat.name}
+                  </button>
+                ))}
+                {filteredCategories.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
+                    {t("transactions.no_categories")}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAccountDropdown(!showAccountDropdown);
+                setShowCategoryDropdown(false);
+              }}
+              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            >
+              {selectedAccount ? selectedAccount.name : t("transactions.account")}
+              <ChevronDown size={12} />
+            </button>
+
+            {showAccountDropdown && (
+              <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
+                {accounts.map((acc) => (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => {
+                      setAccountId(acc.id);
+                      setShowAccountDropdown(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                  >
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: acc.color }}
+                    />
+                    {acc.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            required
+            className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+            title={t("transactions.due_date")}
+          />
+
+          <input
+            type="text"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={t("transactions.new_amount_placeholder")}
+            className="w-24 border-none bg-transparent text-right text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+            inputMode="decimal"
+          />
+
           <button
-            type="button"
-            onClick={() => {
-              setShowAccountDropdown(!showAccountDropdown);
-              setShowCategoryDropdown(false);
-            }}
-            className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            type="submit"
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
           >
-            {selectedAccount ? selectedAccount.name : t("transactions.account")}
-            <ChevronDown size={12} />
+            <Plus size={18} />
           </button>
 
-          {showAccountDropdown && (
-            <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
-              {accounts.map((acc) => (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => {
-                    setAccountId(acc.id);
-                    setShowAccountDropdown(false);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: acc.color }}
-                  />
-                  {acc.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowMoreOptions(!showMoreOptions)}
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            title={t("transactions.more_options")}
+          >
+            {showMoreOptions ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </button>
         </div>
 
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          required
-          className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-          title={t("transactions.due_date")}
-        />
+        {showMoreOptions && (
+          <div className="space-y-3 border-t border-gray-200 px-4 py-3 dark:border-gray-600">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                {t("transactions.notes_label")}
+              </label>
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={t("transactions.notes_placeholder")}
+                className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              />
+            </div>
 
-        <input
-          type="text"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={t("transactions.new_amount_placeholder")}
-          className="w-24 border-none bg-transparent text-right text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
-          inputMode="decimal"
-        />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                {t("transactions.recurrence_label")}
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRecurrenceType(recurrenceType === "none" ? "none" : "none")}
+                  className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    recurrenceType === "none"
+                      ? "border-gray-400 bg-gray-100 text-gray-900 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-100"
+                      : "border-gray-200 bg-white text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                  }`}
+                >
+                  {t("transactions.no_recurrence")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecurrenceType(recurrenceType === "installment" ? "none" : "installment")}
+                  className={`flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    recurrenceType === "installment"
+                      ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400"
+                      : "border-gray-200 bg-white text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                  }`}
+                >
+                  <CalendarRange size={14} />
+                  {t("transactions.installment")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecurrenceType(recurrenceType === "recurring" ? "none" : "recurring")}
+                  className={`flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    recurrenceType === "recurring"
+                      ? "border-violet-400 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-900/30 dark:text-violet-400"
+                      : "border-gray-200 bg-white text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                  }`}
+                >
+                  <Repeat size={14} />
+                  {t("transactions.recurring")}
+                </button>
+              </div>
+            </div>
 
-        <button
-          type="submit"
-          className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-        >
-          <Plus size={18} />
-        </button>
+            {recurrenceType === "installment" && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {t("transactions.installment_count")}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {RECURRENCE_OPTIONS.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setInstallmentCount(n)}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        installmentCount === n
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400"
+                          : "border-gray-200 bg-white text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                      }`}
+                    >
+                      {n}x
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
+                  {t("transactions.installment_hint", { count: installmentCount })}
+                </p>
+              </div>
+            )}
+
+            {recurrenceType === "recurring" && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t("transactions.recurring_hint")}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowMoreOptions(false);
+                setNotes("");
+                setRecurrenceType("none");
+                setInstallmentCount(2);
+              }}
+              className="flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <X size={14} />
+              {t("transactions.clear_options")}
+            </button>
+          </div>
+        )}
       </form>
 
       {items.length === 0 ? (
@@ -484,6 +709,9 @@ export function TransactionGrid({
                         <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                           {item.description}
                         </span>
+                        {item.recurrenceId && (
+                          <Repeat size={12} className="text-gray-400 dark:text-gray-500" />
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span
@@ -510,11 +738,19 @@ export function TransactionGrid({
                       {formatCurrency(item.amount)}
                     </span>
 
-                    <PaidToggle
-                      isPaid={item.isPaid}
-                      type={item.type}
-                      onToggle={() => onTogglePaid(item.id)}
-                    />
+                    <div className="flex items-center gap-1">
+                      <PaidToggle
+                        isPaid={item.isPaid}
+                        type={item.type}
+                        onToggle={() => onTogglePaid(item.id)}
+                      />
+                      <button
+                        onClick={() => handleDeleteClick(item)}
+                        className="rounded p-1 text-gray-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <div className="flex items-center justify-end border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
@@ -537,6 +773,38 @@ export function TransactionGrid({
           </div>
         </>
       )}
+
+      <RecurrenceModal
+        open={recurrenceModal.open}
+        onClose={() => setRecurrenceModal((prev) => ({ ...prev, open: false }))}
+        onConfirm={handleRecurrenceConfirm}
+        action={recurrenceModal.action}
+        description={recurrenceModal.description}
+      />
+
+      <Modal
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, transactionId: "", description: "" })}
+        title={t("transactions.delete_confirm_title")}
+      >
+        <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          {t("transactions.delete_confirm_message", { description: deleteConfirm.description })}
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setDeleteConfirm({ open: false, transactionId: "", description: "" })}
+            className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-300 transition-colors hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-600"
+          >
+            {t("transactions.delete_confirm_cancel")}
+          </button>
+          <button
+            onClick={handleDeleteConfirm}
+            className="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800"
+          >
+            {t("transactions.delete_confirm_ok")}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

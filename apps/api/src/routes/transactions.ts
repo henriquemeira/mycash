@@ -77,6 +77,10 @@ txRoutes.get("/", async (c) => {
       isPaid: transactions.isPaid,
       accountId: transactions.accountId,
       categoryId: transactions.categoryId,
+      recurrenceId: transactions.recurrenceId,
+      installmentNumber: transactions.installmentNumber,
+      totalInstallments: transactions.totalInstallments,
+      notes: transactions.notes,
       accountName: accounts.name,
       categoryName: categories.name,
       categoryColor: categories.color,
@@ -99,6 +103,10 @@ txRoutes.get("/", async (c) => {
     isPaid: row.isPaid,
     accountId: encodeId(row.accountId, salt),
     categoryId: encodeId(row.categoryId, salt),
+    recurrenceId: row.recurrenceId ? encodeId(row.recurrenceId, salt) : null,
+    installmentNumber: row.installmentNumber,
+    totalInstallments: row.totalInstallments,
+    notes: row.notes,
     accountName: row.accountName,
     categoryName: row.categoryName,
     categoryColor: row.categoryColor,
@@ -120,6 +128,16 @@ txRoutes.get("/", async (c) => {
   });
 });
 
+function addMonths(dateStr: string, months: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1 + months, 1);
+  const maxDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const day = Math.min(d, maxDay);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
+
 txRoutes.post("/", async (c) => {
   const userId = c.get("userId");
   const salt = c.env.HASHIDS_SALT;
@@ -132,6 +150,11 @@ txRoutes.post("/", async (c) => {
     type: string;
     accountId: string;
     categoryId: string;
+    notes?: string;
+    recurrence?: {
+      type: "installment" | "recurring";
+      totalInstallments: number;
+    };
   }>();
 
   if (!body.description || !body.amount || !body.dueDate || !body.type || !body.accountId || !body.categoryId) {
@@ -146,11 +169,116 @@ txRoutes.post("/", async (c) => {
   }
 
   const db = drizzle(c.env.DB);
-  const id = newId();
   const now = new Date();
 
   const amount = body.type === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
+  const dateValue = body.date || now.toISOString().split("T")[0];
 
+  if (body.recurrence && body.recurrence.type === "installment" && body.recurrence.totalInstallments > 1) {
+    const totalInstallments = body.recurrence.totalInstallments;
+    const recurrenceGroupId = newId();
+    const firstId = newId();
+
+    for (let i = 1; i <= totalInstallments; i++) {
+      await db.insert(transactions).values({
+        id: i === 1 ? firstId : newId(),
+        userId,
+        accountId: decodedAccountId,
+        categoryId: decodedCategoryId,
+        description: `${body.description} (${i}/${totalInstallments})`,
+        amount,
+        date: addMonths(dateValue, i - 1),
+        dueDate: addMonths(body.dueDate, i - 1),
+        type: body.type as "income" | "expense" | "transfer",
+        isPaid: false,
+        recurrenceId: recurrenceGroupId,
+        installmentNumber: i,
+        totalInstallments,
+        notes: body.notes || null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return c.json(
+      {
+        transaction: {
+          id: encodeId(firstId, salt),
+          description: `${body.description} (1/${totalInstallments})`,
+          amount,
+          date: dateValue,
+          dueDate: body.dueDate,
+          type: body.type,
+          isPaid: false,
+          accountId: body.accountId,
+          categoryId: body.categoryId,
+          recurrenceId: encodeId(recurrenceGroupId, salt),
+          installmentNumber: 1,
+          totalInstallments,
+          notes: body.notes || null,
+          accountName: "",
+          categoryName: "",
+          categoryColor: "",
+        },
+        createdCount: totalInstallments,
+      },
+      201
+    );
+  }
+
+  if (body.recurrence && body.recurrence.type === "recurring") {
+    const recurrenceGroupId = newId();
+    const totalInstallments = 12;
+    const firstId = newId();
+
+    for (let i = 1; i <= totalInstallments; i++) {
+      await db.insert(transactions).values({
+        id: i === 1 ? firstId : newId(),
+        userId,
+        accountId: decodedAccountId,
+        categoryId: decodedCategoryId,
+        description: body.description,
+        amount,
+        date: addMonths(dateValue, i - 1),
+        dueDate: addMonths(body.dueDate, i - 1),
+        type: body.type as "income" | "expense" | "transfer",
+        isPaid: false,
+        recurrenceId: recurrenceGroupId,
+        installmentNumber: i,
+        totalInstallments,
+        notes: body.notes || null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return c.json(
+      {
+        transaction: {
+          id: encodeId(firstId, salt),
+          description: body.description,
+          amount,
+          date: addMonths(dateValue, 0),
+          dueDate: addMonths(body.dueDate, 0),
+          type: body.type,
+          isPaid: false,
+          accountId: body.accountId,
+          categoryId: body.categoryId,
+          recurrenceId: encodeId(recurrenceGroupId, salt),
+          installmentNumber: 1,
+          totalInstallments,
+          notes: body.notes || null,
+          accountName: "",
+          categoryName: "",
+          categoryColor: "",
+        },
+        createdCount: totalInstallments,
+      },
+      201
+    );
+  }
+
+  const id = newId();
   await db.insert(transactions).values({
     id,
     userId,
@@ -158,10 +286,11 @@ txRoutes.post("/", async (c) => {
     categoryId: decodedCategoryId,
     description: body.description,
     amount,
-    date: body.date || now.toISOString().split("T")[0],
+    date: dateValue,
     dueDate: body.dueDate,
     type: body.type as "income" | "expense" | "transfer",
     isPaid: false,
+    notes: body.notes || null,
     createdAt: now,
     updatedAt: now,
   });
@@ -172,19 +301,200 @@ txRoutes.post("/", async (c) => {
         id: encodeId(id, salt),
         description: body.description,
         amount,
-        date: body.date || now.toISOString().split("T")[0],
+        date: dateValue,
         dueDate: body.dueDate,
         type: body.type,
         isPaid: false,
         accountId: body.accountId,
         categoryId: body.categoryId,
+        recurrenceId: null,
+        installmentNumber: null,
+        totalInstallments: null,
+        notes: body.notes || null,
         accountName: "",
         categoryName: "",
         categoryColor: "",
       },
+      createdCount: 1,
     },
     201
   );
+});
+
+txRoutes.put("/:id", hashidMiddleware, async (c) => {
+  const userId = c.get("userId");
+  const decodedId = c.get("decodedId");
+  const salt = c.env.HASHIDS_SALT;
+
+  if (!decodedId) {
+    return c.json({ error: "errors.invalid_id" }, 400);
+  }
+
+  const body = await c.req.json<{
+    description?: string;
+    amount?: number;
+    type?: string;
+    date?: string;
+    dueDate?: string;
+    accountId?: string;
+    categoryId?: string;
+    notes?: string;
+    isPaid?: boolean;
+    scope?: "single" | "future";
+  }>();
+
+  const db = drizzle(c.env.DB);
+
+  const tx = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.id, decodedId),
+        eq(transactions.userId, userId),
+        isNull(transactions.deletedAt)
+      )
+    )
+    .get();
+
+  if (!tx) {
+    return c.json({ error: "errors.transaction_not_found" }, 404);
+  }
+
+  const now = new Date();
+  const decodedAccountId = body.accountId ? decodeId(body.accountId, salt) : tx.accountId;
+  const decodedCategoryId = body.categoryId ? decodeId(body.categoryId, salt) : tx.categoryId;
+
+  if ((body.accountId && !decodedAccountId) || (body.categoryId && !decodedCategoryId)) {
+    return c.json({ error: "errors.invalid_id" }, 400);
+  }
+
+  const scope = body.scope || "single";
+
+  if (tx.recurrenceId && scope === "future") {
+    const effectiveDueDate = tx.dueDate || tx.date;
+    const conditions = [
+      eq(transactions.recurrenceId, tx.recurrenceId),
+      eq(transactions.userId, userId),
+      gte(transactions.dueDate, effectiveDueDate),
+      isNull(transactions.deletedAt),
+    ];
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: now,
+    };
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.amount !== undefined) {
+      updateData.amount = body.type === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
+    } else if (body.type !== undefined) {
+      updateData.amount = body.type === "expense"
+        ? -Math.abs(tx.amount)
+        : Math.abs(tx.amount);
+    }
+    if (body.type !== undefined) updateData.type = body.type;
+    if (body.date !== undefined) updateData.date = body.date;
+    if (body.dueDate !== undefined) updateData.dueDate = body.dueDate;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    if (decodedAccountId) updateData.accountId = decodedAccountId;
+    if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
+    if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
+
+    await db
+      .update(transactions)
+      .set(updateData)
+      .where(and(...conditions));
+
+    return c.json({
+      updatedCount: "bulk",
+      scope: "future",
+    });
+  }
+
+  const updateData: Record<string, unknown> = {
+    updatedAt: now,
+  };
+  if (body.description !== undefined) updateData.description = body.description;
+  if (body.amount !== undefined) {
+    updateData.amount = (body.type || tx.type) === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
+  }
+  if (body.type !== undefined) updateData.type = body.type;
+  if (body.date !== undefined) updateData.date = body.date;
+  if (body.dueDate !== undefined) updateData.dueDate = body.dueDate;
+  if (decodedAccountId) updateData.accountId = decodedAccountId;
+  if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
+  if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
+  if (body.notes !== undefined) updateData.notes = body.notes;
+
+  if (tx.recurrenceId && scope === "single") {
+    updateData.recurrenceId = null;
+    updateData.installmentNumber = null;
+    updateData.totalInstallments = null;
+  }
+
+  await db
+    .update(transactions)
+    .set(updateData)
+    .where(eq(transactions.id, decodedId));
+
+  return c.json({
+    updatedCount: 1,
+    scope: "single",
+  });
+});
+
+txRoutes.delete("/:id", hashidMiddleware, async (c) => {
+  const userId = c.get("userId");
+  const decodedId = c.get("decodedId");
+
+  if (!decodedId) {
+    return c.json({ error: "errors.invalid_id" }, 400);
+  }
+
+  const scope = c.req.query("scope") || "single";
+
+  const db = drizzle(c.env.DB);
+
+  const tx = await db
+    .select()
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.id, decodedId),
+        eq(transactions.userId, userId),
+        isNull(transactions.deletedAt)
+      )
+    )
+    .get();
+
+  if (!tx) {
+    return c.json({ error: "errors.transaction_not_found" }, 404);
+  }
+
+  const now = new Date();
+
+  if (tx.recurrenceId && scope === "future") {
+    const effectiveDueDate = tx.dueDate || tx.date;
+    await db
+      .update(transactions)
+      .set({ deletedAt: now })
+      .where(
+        and(
+          eq(transactions.recurrenceId, tx.recurrenceId),
+          eq(transactions.userId, userId),
+          gte(transactions.dueDate, effectiveDueDate),
+          isNull(transactions.deletedAt)
+        )
+      );
+
+    return c.json({ deletedCount: "bulk", scope: "future" });
+  }
+
+  await db
+    .update(transactions)
+    .set({ deletedAt: now })
+    .where(eq(transactions.id, decodedId));
+
+  return c.json({ deletedCount: 1, scope: "single" });
 });
 
 txRoutes.patch("/:id/toggle-paid", hashidMiddleware, async (c) => {

@@ -67,7 +67,32 @@
     "new_amount_placeholder": "0,00",
     "add": "Adicionar",
     "load_more": "Carregar mais",
-    "loading_more": "Carregando..."
+    "loading_more": "Carregando...",
+    "more_options": "Mais opções",
+    "notes_label": "Nota",
+    "notes_placeholder": "Adicionar uma nota...",
+    "recurrence_label": "Repetir transação",
+    "no_recurrence": "Não repetir",
+    "installment": "Parcelamento",
+    "recurring": "Recorrente",
+    "installment_count": "Número de parcelas",
+    "installment_hint": "Serão criadas {{count}} transações, uma para cada mês.",
+    "recurring_hint": "Serão criadas 12 transações mensais (próximos 12 meses).",
+    "clear_options": "Limpar opções",
+    "delete": "Excluir",
+    "delete_confirm_title": "Excluir transação",
+    "delete_confirm_message": "Deseja excluir \"{{description}}\"? Esta ação não pode ser desfeita.",
+    "delete_confirm_cancel": "Cancelar",
+    "delete_confirm_ok": "Excluir"
+  },
+  "recurrence": {
+    "edit_title": "Editar transação recorrente",
+    "delete_title": "Excluir transação recorrente",
+    "explanation": "Esta transação pertence a uma série recorrente. Deseja aplicar a alteração apenas a esta ou a todas as futuras?",
+    "edit_single": "Alterar apenas esta",
+    "edit_future": "Alterar a partir desta",
+    "delete_single": "Excluir apenas esta",
+    "delete_future": "Excluir a partir desta"
   },
   "months": {
     "1": "Janeiro",
