@@ -1,5 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { useState, useCallback, useMemo, type FormEvent } from "react";
+import { useState, useCallback, useMemo, type FormEvent, Fragment } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  type ColumnDef,
+  type Row,
+} from "@tanstack/react-table";
 import { Plus, ChevronDown } from "lucide-react";
 import type { Transaction, Category, Account, TransactionType } from "@/lib/api";
 import { PaidToggle } from "./PaidToggle";
@@ -23,8 +30,30 @@ function formatFullDate(dateStr: string, locale: string): string {
 const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
   { value: "income", label: "+" },
   { value: "expense", label: "-" },
-  { value: "transfer", label: "⇄" },
+  { value: "transfer", label: "\u21C4" },
 ];
+
+const amountColorClass = (t: TransactionType) => {
+  switch (t) {
+    case "income":
+      return "text-emerald-600 dark:text-emerald-400";
+    case "expense":
+      return "text-rose-600 dark:text-rose-400";
+    case "transfer":
+      return "text-blue-600 dark:text-blue-400";
+  }
+};
+
+const typeColorClasses = (t: TransactionType) => {
+  switch (t) {
+    case "income":
+      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+    case "expense":
+      return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400";
+    case "transfer":
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+  }
+};
 
 interface TransactionGridProps {
   items: Transaction[];
@@ -69,6 +98,84 @@ export function TransactionGrid({
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const selectedAccount = accounts.find((a) => a.id === accountId);
+
+  const columns = useMemo<ColumnDef<Transaction>[]>(
+    () => [
+      {
+        id: "paid",
+        size: 44,
+        header: "",
+        cell: ({ row }) => (
+          <PaidToggle
+            isPaid={row.original.isPaid}
+            type={row.original.type}
+            onToggle={() => onTogglePaid(row.original.id)}
+          />
+        ),
+      },
+      {
+        accessorKey: "description",
+        header: t("transactions.description"),
+        cell: ({ getValue }) => (
+          <span className="text-sm text-gray-900 dark:text-gray-100">
+            {getValue() as string}
+          </span>
+        ),
+      },
+      {
+        id: "category",
+        header: t("transactions.category"),
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span
+              className="mr-1.5 inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: row.original.categoryColor }}
+            />
+            {row.original.categoryName}
+          </span>
+        ),
+      },
+      {
+        id: "account",
+        header: t("transactions.account"),
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {row.original.accountName}
+          </span>
+        ),
+      },
+      {
+        id: "amount",
+        header: t("transactions.amount"),
+        cell: ({ row }) => {
+          const { amount, type } = row.original;
+          return (
+            <span
+              className={`text-sm font-medium ${amountColorClass(type)}`}
+            >
+              {type === "income" ? "+" : type === "expense" ? "-" : "\u21C4"}
+              {formatCurrency(amount)}
+            </span>
+          );
+        },
+      },
+    ],
+    [t, onTogglePaid]
+  );
+
+  const table = useReactTable({
+    data: items,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const rowMap = useMemo(() => {
+    const map = new Map<string, Row<Transaction>>();
+    for (const row of table.getRowModel().rows) {
+      map.set(row.original.id, row);
+    }
+    return map;
+  }, [table]);
 
   const groupedItems = useMemo(() => {
     const groups: { date: string; items: Transaction[]; balance: number }[] = [];
@@ -122,31 +229,12 @@ export function TransactionGrid({
     [desc, amount, dueDate, type, categoryId, accountId, today, onCreateTransaction]
   );
 
-  const typeColorClasses = (t: TransactionType) => {
-    switch (t) {
-      case "income":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-      case "expense":
-        return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400";
-      case "transfer":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-    }
-  };
-
-  const amountColorClass = (t: TransactionType) => {
-    switch (t) {
-      case "income":
-        return "text-emerald-600 dark:text-emerald-400";
-      case "expense":
-        return "text-rose-600 dark:text-rose-400";
-      case "transfer":
-        return "text-blue-600 dark:text-blue-400";
-    }
-  };
+  const colCount = columns.length;
 
   return (
     <div className="flex flex-col">
       <form
+        id="quick-add-form"
         onSubmit={handleInsert}
         className="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800"
       >
@@ -300,59 +388,63 @@ export function TransactionGrid({
           <div className="hidden md:block">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                  <th className="w-10 px-4 py-2"></th>
-                  <th className="px-4 py-2">{t("transactions.description")}</th>
-                  <th className="px-4 py-2">{t("transactions.category")}</th>
-                  <th className="px-4 py-2">{t("transactions.account")}</th>
-                  <th className="px-4 py-2 text-right">{t("transactions.amount")}</th>
-                </tr>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr
+                    key={headerGroup.id}
+                    className="border-b border-gray-200 text-left text-xs font-medium uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                  >
+                    {headerGroup.headers.map((header) => (
+                      <th key={header.id} className="px-4 py-2">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
               </thead>
               <tbody>
                 {groupedItems.map((group) => (
-                  <>
-                    <tr key={`header-${group.date}`} className="bg-gray-100 dark:bg-gray-800">
-                      <td colSpan={5} className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <Fragment key={`group-${group.date}`}>
+                    <tr className="bg-gray-100 dark:bg-gray-800">
+                      <td
+                        colSpan={colCount}
+                        className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
+                      >
                         {formatFullDate(group.date, i18n.language)}
                       </td>
                     </tr>
-                    {group.items.map((item) => (
-                      <tr
-                        key={item.id}
-                        className={`border-b border-gray-100 transition-opacity duration-200 dark:border-gray-800 ${
-                          item.isPaid ? "opacity-100" : "opacity-50 dark:opacity-60"
-                        }`}
-                      >
-                        <td className="px-2 py-1">
-                          <PaidToggle
-                            isPaid={item.isPaid}
-                            type={item.type}
-                            onToggle={() => onTogglePaid(item.id)}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                          {item.description}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          <span
-                            className="mr-1.5 inline-block h-2 w-2 rounded-full"
-                            style={{ backgroundColor: item.categoryColor }}
-                          />
-                          {item.categoryName}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          {item.accountName}
-                        </td>
-                        <td
-                          className={`px-4 py-2 text-right text-sm font-medium ${amountColorClass(item.type)}`}
+                    {group.items.map((item) => {
+                      const row = rowMap.get(item.id);
+                      if (!row) return null;
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`border-b border-gray-100 transition-opacity duration-200 dark:border-gray-800 ${
+                            item.isPaid
+                              ? "opacity-100"
+                              : "opacity-50 dark:opacity-60"
+                          }`}
                         >
-                          {item.type === "income" ? "+" : item.type === "expense" ? "-" : "⇄"}
-                          {formatCurrency(item.amount)}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr key={`balance-${group.date}`} className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-850">
-                      <td colSpan={4} className="px-4 py-2 text-right text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="px-2 py-1">
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700">
+                      <td
+                        colSpan={colCount - 1}
+                        className="px-4 py-2 text-right text-xs font-medium text-gray-600 dark:text-gray-400"
+                      >
                         {t("transactions.daily_balance")}
                       </td>
                       <td
@@ -366,7 +458,7 @@ export function TransactionGrid({
                         {formatCurrency(group.balance)}
                       </td>
                     </tr>
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -382,7 +474,9 @@ export function TransactionGrid({
                   <div
                     key={item.id}
                     className={`flex items-center gap-3 border-b border-gray-100 px-4 py-3 transition-opacity duration-200 dark:border-gray-800 ${
-                      item.isPaid ? "opacity-100" : "opacity-50 dark:opacity-60"
+                      item.isPaid
+                        ? "opacity-100"
+                        : "opacity-50 dark:opacity-60"
                     }`}
                   >
                     <PaidToggle
@@ -406,13 +500,19 @@ export function TransactionGrid({
                           {item.categoryName}
                         </span>
                         <span className="text-xs text-gray-400 dark:text-gray-500">
-                          · {item.accountName}
+                          &middot; {item.accountName}
                         </span>
                       </div>
                     </div>
 
-                    <span className={`text-sm font-semibold ${amountColorClass(item.type)}`}>
-                      {item.type === "income" ? "+" : item.type === "expense" ? "-" : "⇄"}
+                    <span
+                      className={`text-sm font-semibold ${amountColorClass(item.type)}`}
+                    >
+                      {item.type === "income"
+                        ? "+"
+                        : item.type === "expense"
+                          ? "-"
+                          : "\u21C4"}
                       {formatCurrency(item.amount)}
                     </span>
                   </div>

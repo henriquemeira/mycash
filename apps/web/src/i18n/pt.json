@@ -41,6 +41,10 @@
     "new_transaction": "Nova Transação",
     "settings": "Configurações"
   },
+  "settings": {
+    "dark_mode": "Modo escuro",
+    "light_mode": "Modo claro"
+  },
   "transactions": {
     "title": "Transações",
     "description": "Descrição",
@@ -61,7 +65,9 @@
     "daily_balance": "Saldo do dia",
     "new_description_placeholder": "Descrição...",
     "new_amount_placeholder": "0,00",
-    "add": "Adicionar"
+    "add": "Adicionar",
+    "load_more": "Carregar mais",
+    "loading_more": "Carregando..."
   },
   "months": {
     "1": "Janeiro",

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, gte, lte, isNull, asc } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
   transactions,
@@ -19,6 +19,9 @@ txRoutes.get("/", async (c) => {
   const userId = c.get("userId");
   const month = c.req.query("month");
   const year = c.req.query("year");
+  const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query("limit") || "50", 10) || 50));
+  const offset = (page - 1) * limit;
 
   const now = new Date();
   const m = month ? parseInt(month, 10) : now.getMonth() + 1;
@@ -29,6 +32,37 @@ txRoutes.get("/", async (c) => {
   const endDate = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
   const db = drizzle(c.env.DB);
+  const salt = c.env.HASHIDS_SALT;
+
+  const whereCondition = and(
+    eq(transactions.userId, userId),
+    gte(transactions.dueDate, startDate),
+    lte(transactions.dueDate, endDate),
+    isNull(transactions.deletedAt)
+  );
+
+  const summaryRows = await db
+    .select({
+      type: transactions.type,
+      total: sql<number>`cast(sum(${transactions.amount}) as integer)`,
+    })
+    .from(transactions)
+    .where(whereCondition)
+    .groupBy(transactions.type);
+
+  let income = 0;
+  let expense = 0;
+  for (const row of summaryRows) {
+    if (row.type === "income") income += row.total;
+    else if (row.type === "expense") expense += Math.abs(row.total);
+  }
+
+  const countResult = await db
+    .select({ count: sql<number>`cast(count(*) as integer)` })
+    .from(transactions)
+    .where(whereCondition);
+
+  const total = countResult[0]?.count ?? 0;
 
   const rows = await db
     .select({
@@ -48,38 +82,25 @@ txRoutes.get("/", async (c) => {
     .from(transactions)
     .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(
-      and(
-        eq(transactions.userId, userId),
-        gte(transactions.dueDate, startDate),
-        lte(transactions.dueDate, endDate),
-        isNull(transactions.deletedAt)
-      )
-    )
-    .orderBy(asc(transactions.dueDate));
+    .where(whereCondition)
+    .orderBy(asc(transactions.dueDate))
+    .limit(limit)
+    .offset(offset);
 
-  let income = 0;
-  let expense = 0;
-  const items = rows.map((row) => {
-    if (row.type === "income") income += row.amount;
-    else if (row.type === "expense") expense += Math.abs(row.amount);
-
-    const salt = c.env.HASHIDS_SALT;
-    return {
-      id: encodeId(row.id, salt),
-      description: row.description,
-      amount: row.amount,
-      date: row.date,
-      dueDate: row.dueDate,
-      type: row.type,
-      isPaid: row.isPaid,
-      accountId: encodeId(row.accountId, salt),
-      categoryId: encodeId(row.categoryId, salt),
-      accountName: row.accountName,
-      categoryName: row.categoryName,
-      categoryColor: row.categoryColor,
-    };
-  });
+  const items = rows.map((row) => ({
+    id: encodeId(row.id, salt),
+    description: row.description,
+    amount: row.amount,
+    date: row.date,
+    dueDate: row.dueDate,
+    type: row.type,
+    isPaid: row.isPaid,
+    accountId: encodeId(row.accountId, salt),
+    categoryId: encodeId(row.categoryId, salt),
+    accountName: row.accountName,
+    categoryName: row.categoryName,
+    categoryColor: row.categoryColor,
+  }));
 
   return c.json({
     summary: {
@@ -88,6 +109,12 @@ txRoutes.get("/", async (c) => {
       balance: income - expense,
     },
     items,
+    pagination: {
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    },
   });
 });
 

@@ -15,8 +15,8 @@
 | Script anti-flash no `<head>` do HTML | ✅ | `index.html` com script inline |
 | Alternador Tema (Sol/Lua) no TopBar | ✅ | `Sun` / `Moon` icons |
 | Seletor Idioma (PT/EN) no TopBar | ✅ | `Globe` icon + toggle |
-| **Bottom Navigation Bar para Mobile** | ❌ | **Não implementada** — apenas TopBar fixo no topo |
-| **Header completo para Desktop** | ⚠️ | Parcial — TopBar existe mas sem navegação inferior |
+| **Bottom Navigation Bar para Mobile** | ✅ | `BottomNav.tsx` com Transações, Nova Transação, Configurações |
+| **Header completo para Desktop** | ✅ | TopBar com tema/idioma/logout visível em desktop, BottomNav em mobile |
 
 ### US04 - Listagem Mensal de Transações
 
@@ -26,8 +26,8 @@
 | Resposta JSON com `{ summary, items }` | ✅ | `summary.income`, `summary.expense`, `summary.balance` |
 | `POST /transactions` | ✅ | Criação com validação + decodificação hashids |
 | `PATCH /transactions/:id/toggle-paid` | ✅ | Com middleware hashid |
-| **Paginação / limite de dados** | ❌ | **Não implementado** — retorna todas do mês |
-| **Uso do TanStack Table** | ❌ | **Instalado mas não utilizado** — tabela manual |
+| **Paginação / limite de dados** | ✅ | Backend com `page`/`limit`, resposta inclui `{ summary, items, pagination }` |
+| **Uso do TanStack Table** | ✅ | `useReactTable` com `ColumnDef` e `flexRender` no desktop |
 
 ### 📅 Refinamento da US04
 
@@ -58,7 +58,7 @@
 | Alteração visual imediata no toggle | ✅ | `setItems` antes do fetch |
 | Disparo em segundo plano (`PATCH`) | ✅ | `api.togglePaid` após otimismo |
 | Reversão em caso de erro | ✅ | Rollback no `catch` |
-| **Notificação discreta de erro** | ❌ | Apenas reversão silenciosa, sem toast |
+| **Notificação discreta de erro** | ✅ | Toast via `ToastContext` — aparece em toggle-paid e create com falha |
 
 ### 📱 Linha de Inserção Rápida
 
@@ -86,27 +86,25 @@
 
 ## ⚠️ Não Conformidades e Observações
 
-### 1. TanStack Table não utilizado
+### 1. TanStack Table — CORRIGIDO
 **Planejado:** `@tanstack/react-table` para o TransactionGrid.
-**Realidade:** Biblioteca instalada mas grid renderizado manualmente com `<table>` JSX puro e `useMemo` para agrupamento.
+**Corrigido:** Grid migrado para `useReactTable` com `ColumnDef` e `flexRender`. Cabeçalhos e células do desktop renderizados via TanStack Table. Agrupamento por data mantido com lógica manual.
 
-Funciona perfeitamente para o caso de uso atual, mas perde os benefícios do TanStack (ordenação por coluna, filtros, seleção, paginação). **Sugestão:** Migrar para TanStack Table quando houver necessidade de ordenação interativa ou paginação client-side.
-
-### 2. Sem paginação no backend
+### 2. Paginação no backend — CORRIGIDO
 **Planejado:** Endpoint com paginação/limite de dados.
-**Realidade:** Retorna todas as transações do mês sem limite. Para uso atual (transações mensais) é aceitável, mas com muitos registros pode degradar performance.
+**Corrigido:** `GET /transactions` agora aceita `page` e `limit` (default 50, max 100). Resposta inclui `pagination: { page, limit, total, hasMore }`. Summary calculado sobre todas as transações do mês (não apenas a página). Botão "Carregar mais" no frontend quando `hasMore`.
 
-### 3. Bottom Navigation Bar não implementada
-**Planejado:** Bottom Nav Bar mobile com 3 ações (Transações, Nova Transação, Configurações).
-**Realidade:** Apenas TopBar fixa. A navegação inferior não foi construída.
+### 3. Bottom Navigation Bar — CORRIGIDO
+**Planejado:** Bottom Nav Bar mobile com 3 ações.
+**Corrigido:** `BottomNav.tsx` com ícones para Transações, Nova Transação e Configurações. Visível apenas em mobile (`md:hidden`). Configurações oferece tema, idioma e logout. TopBar simplificado em mobile (apenas título, controles ocultos).
 
-### 4. Sem notificação de erro na optimistic UI
-**Planejado:** "Não foi possível salvar. Tentando novamente..."
-**Realidade:** Reversão silenciosa sem feedback visual ao usuário.
+### 4. Notificação de erro na optimistic UI — CORRIGIDO
+**Planejado:** Toast discreto quando optimistic update falha.
+**Corrigido:** `ToastContext` implementado com toast de erro em `handleTogglePaid` e `handleCreate`. Notificação aparece por 3 segundos com estilo condicional (erro em vermelho, sucesso em verde).
 
 ### 5. Filtro por `dueDate` em vez de `date`
 **Planejado (escopo):** Filtrar por `transactions.date`.
-**Realidade:** Implementado filtro por `transactions.dueDate`. Mudança de escopo não documentada no planejamento. A intenção foi alinhar a listagem mensal à data de vencimento, que é o campo mais relevante para o usuário.
+**Realidade:** Implementado filtro por `transactions.dueDate`. Mudança de escopo não documentada no planejamento. A intenção foi alinhar a listagem mensal à data de vencimento, que é o campo mais relevante para o usuário. Aceito como design correto.
 
 ---
 
@@ -115,8 +113,8 @@ Funciona perfeitamente para o caso de uso atual, mas perde os benefícios do Tan
 | Métrica | Valor |
 |---|---|
 | Itens planejados | ~25 |
-| Itens implementados | 21 |
-| Não implementados | 4 (BottomNav, TanStack Table, paginação, toast de erro) |
+| Itens implementados | 25 |
+| Não conformidades | 0 (todas corrigidas ou aceitas como design) |
 | Itens adicionais implementados | 6 (dueDate, transfer, accounts/categories endpoints, agrupamento, saldo diário, seletor de conta) |
 | Build | ✅ Passa |
 | Typecheck | ✅ Passa |

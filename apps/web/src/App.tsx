@@ -2,8 +2,10 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 import { AuthPage } from "@/pages/AuthPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
+import { BottomNav } from "@/components/BottomNav";
 import { Sun, Moon, Globe } from "lucide-react";
 
 function TopBar() {
@@ -16,7 +18,7 @@ function TopBar() {
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
       <button
         onClick={toggleTheme}
-        className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+        className="hidden rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 md:block"
         aria-label="Toggle theme"
       >
         {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
@@ -26,7 +28,7 @@ function TopBar() {
         {t("app.title")}
       </h1>
 
-      <div className="flex items-center gap-1">
+      <div className="hidden items-center gap-1 md:flex">
         <button
           onClick={() => setLanguage(language === "pt" ? "en" : "pt")}
           className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -45,13 +47,23 @@ function TopBar() {
   );
 }
 
+function handleNewTransaction() {
+  const form = document.getElementById("quick-add-form");
+  if (form) {
+    form.scrollIntoView({ behavior: "smooth" });
+    const input = form.querySelector('input[type="text"]');
+    if (input) (input as HTMLInputElement).focus();
+  }
+}
+
 function Dashboard() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
       <TopBar />
-      <main className="flex-1">
+      <main className="flex-1 pb-16 md:pb-0">
         <TransactionsPage />
       </main>
+      <BottomNav onNewTransaction={handleNewTransaction} />
     </div>
   );
 }
@@ -74,7 +86,9 @@ function AppContent() {
 export function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

@@ -60,9 +60,17 @@ export interface TransactionSummary {
   balance: number;
 }
 
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
+
 export interface TransactionListResponse {
   summary: TransactionSummary;
   items: Transaction[];
+  pagination: Pagination;
 }
 
 export interface Account {
@@ -104,9 +112,9 @@ export const api = {
     return request<{ user: User }>("/auth/me");
   },
 
-  getTransactions(month: number, year: number) {
+  getTransactions(month: number, year: number, page: number = 1, limit: number = 50) {
     return request<TransactionListResponse>(
-      `/transactions?month=${month}&year=${year}`
+      `/transactions?month=${month}&year=${year}&page=${page}&limit=${limit}`
     );
   },
 
