@@ -102,18 +102,6 @@ export function TransactionGrid({
   const columns = useMemo<ColumnDef<Transaction>[]>(
     () => [
       {
-        id: "paid",
-        size: 44,
-        header: "",
-        cell: ({ row }) => (
-          <PaidToggle
-            isPaid={row.original.isPaid}
-            type={row.original.type}
-            onToggle={() => onTogglePaid(row.original.id)}
-          />
-        ),
-      },
-      {
         accessorKey: "description",
         header: t("transactions.description"),
         cell: ({ getValue }) => (
@@ -158,6 +146,18 @@ export function TransactionGrid({
             </span>
           );
         },
+      },
+      {
+        id: "paid",
+        size: 44,
+        header: "",
+        cell: ({ row }) => (
+          <PaidToggle
+            isPaid={row.original.isPaid}
+            type={row.original.type}
+            onToggle={() => onTogglePaid(row.original.id)}
+          />
+        ),
       },
     ],
     [t, onTogglePaid]
@@ -479,12 +479,6 @@ export function TransactionGrid({
                         : "opacity-50 dark:opacity-60"
                     }`}
                   >
-                    <PaidToggle
-                      isPaid={item.isPaid}
-                      type={item.type}
-                      onToggle={() => onTogglePaid(item.id)}
-                    />
-
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -515,6 +509,12 @@ export function TransactionGrid({
                           : "\u21C4"}
                       {formatCurrency(item.amount)}
                     </span>
+
+                    <PaidToggle
+                      isPaid={item.isPaid}
+                      type={item.type}
+                      onToggle={() => onTogglePaid(item.id)}
+                    />
                   </div>
                 ))}
                 <div className="flex items-center justify-end border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
