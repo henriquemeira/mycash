@@ -1,4 +1,4 @@
-name = "minhas-financas-api"
+name = "mycash-api"
 main = "src/index.ts"
 compatibility_date = "2025-03-01"
 
@@ -8,6 +8,6 @@ compatibility_date = "2025-03-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "minhas-financas"
+database_name = "mycash"
 database_id = "local"
 migrations_dir = "../../packages/database/drizzle"

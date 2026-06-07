@@ -5,7 +5,7 @@ import {
   transactions,
   accounts,
   categories,
-} from "@minhas-financas/database/schema";
+} from "@mycash/database/schema";
 import { newId } from "../utils/id";
 import { encodeId, decodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";

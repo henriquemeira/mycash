@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { users, accounts, categories } from "@minhas-financas/database/schema";
+import { users, accounts, categories } from "@mycash/database/schema";
 import { hashPassword, verifyPassword } from "../utils/crypto";
 import { signJwt } from "../utils/jwt";
 import { newId } from "../utils/id";

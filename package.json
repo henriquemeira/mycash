@@ -1,13 +1,13 @@
 {
-  "name": "minhas-financas",
+  "name": "mycash",
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel -r run dev",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
-    "db:generate": "pnpm --filter @minhas-financas/database run generate",
-    "db:migrate": "pnpm --filter @minhas-financas/database run migrate"
+    "db:generate": "pnpm --filter @mycash/database run generate",
+    "db:migrate": "pnpm --filter @mycash/database run migrate"
   },
   "engines": {
     "node": ">=20"

@@ -1,17 +1,17 @@
 {
-  "name": "@minhas-financas/api",
+  "name": "@mycash/api",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "wrangler d1 migrations apply minhas-financas --local",
+    "predev": "wrangler d1 migrations apply mycash --local",
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@minhas-financas/database": "workspace:*",
+    "@mycash/database": "workspace:*",
     "drizzle-orm": "^0.39.3",
     "hashids": "^2.3.0",
     "hono": "^4.7.4"

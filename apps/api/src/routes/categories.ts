@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq, and, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { categories } from "@minhas-financas/database/schema";
+import { categories } from "@mycash/database/schema";
 import { encodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
 

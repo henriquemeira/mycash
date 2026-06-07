@@ -1,4 +1,4 @@
-# Minhas Finanças
+# MyCash
 
 Sistema de controle financeiro pessoal leve, rápido e focado em edição inline de transações com motor robusto de recorrências.
 
@@ -39,13 +39,13 @@ Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** co
 ## Estrutura do Projeto
 
 ```
-minhas-financas/
-├── apps/
-│   ├── api/              # Backend Hono.js (Cloudflare Workers)
-│   └── web/              # Frontend React + Vite
-├── packages/
-│   └── database/         # Schema Drizzle ORM compartilhado
-└── docs/                 # Documentação técnica
+mycash/
+  apps/
+    api/              # Backend Hono.js (Cloudflare Workers)
+    web/              # Frontend React + Vite
+  packages/
+    database/         # Schema Drizzle ORM compartilhado
+  docs/               # Documentação técnica
 ```
 
 ## Pré-requisitos
@@ -58,8 +58,8 @@ minhas-financas/
 
 ```bash
 # Clonar repositório
-git clone https://github.com/seu-usuario/minhas-financas.git
-cd minhas-financas
+git clone https://github.com/seu-usuario/mycash.git
+cd mycash
 
 # Instalar dependências
 pnpm install
@@ -130,15 +130,15 @@ O schema está em `packages/database/src/schema.ts`. Tabelas principais:
 wrangler login
 
 # Deploy da API
-pnpm --filter @minhas-financas/api run deploy
+pnpm --filter @mycash/api run deploy
 
 # Criar banco D1
-wrangler d1 create minhas-financas
+wrangler d1 create mycash
 
 # Atualizar wrangler.toml com o database_id gerado
 
 # Aplicar migrações
-wrangler d1 execute minhas-financas --file=packages/database/drizzle/*.sql
+wrangler d1 execute mycash --file=packages/database/drizzle/*.sql
 ```
 
 ### Self-Hosting
@@ -147,7 +147,7 @@ Para execução local com Node.js/Bun:
 
 ```bash
 # Build do frontend
-pnpm --filter @minhas-financas/web run build
+pnpm --filter @mycash/web run build
 
 # Servir frontend (ex: nginx, caddy)
 # Rodar API com Bun ou Node
