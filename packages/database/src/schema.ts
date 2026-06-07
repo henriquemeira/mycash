@@ -63,3 +63,39 @@ export const categories = sqliteTable(
   },
   (table) => [index("categories_user_idx").on(table.userId, table.type)]
 );
+
+export const transactions = sqliteTable(
+  "transactions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    amount: integer("amount").notNull(),
+    date: text("date").notNull(),
+    dueDate: text("due_date"),
+    type: text("type", { enum: ["income", "expense", "transfer"] }).notNull(),
+    isPaid: integer("is_paid", { mode: "boolean" }).default(false).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("transactions_user_date_idx").on(
+      table.userId,
+      table.date,
+      table.deletedAt
+    ),
+  ]
+);

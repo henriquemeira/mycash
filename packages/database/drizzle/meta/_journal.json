@@ -8,6 +8,20 @@
       "when": 1780793517023,
       "tag": "0000_odd_network",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1780829487305,
+      "tag": "0001_overrated_tempest",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1780836084767,
+      "tag": "0002_steep_microchip",
+      "breakpoints": true
     }
   ]
 }

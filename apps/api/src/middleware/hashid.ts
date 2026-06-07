@@ -8,7 +8,7 @@ export const hashidMiddleware = createMiddleware(async (c, next) => {
   if (idParam) {
     const decoded = decodeId(idParam, salt);
     if (decoded === null) {
-      return c.json({ error: "ID inválido" }, 400);
+      return c.json({ error: "errors.invalid_id" }, 400);
     }
     c.req.raw.headers.set("x-decoded-id", decoded.toString());
   }

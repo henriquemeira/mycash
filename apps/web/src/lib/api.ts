@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 const API_BASE = "/api";
 
 interface ApiResponse<T = unknown> {
@@ -21,7 +23,9 @@ async function request<T>(
   const body = await res.json();
 
   if (!res.ok) {
-    return { error: body.error || "Erro desconhecido" };
+    const key = body.error || "errors.unknown";
+    const translated = i18n.t(key);
+    return { error: translated !== key ? translated : key };
   }
 
   return { data: body as T };
@@ -31,6 +35,50 @@ export interface User {
   id: string;
   email: string;
   status?: string;
+}
+
+export type TransactionType = "income" | "expense" | "transfer";
+
+export interface Transaction {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  dueDate: string;
+  type: TransactionType;
+  isPaid: boolean;
+  accountId: string;
+  categoryId: string;
+  accountName?: string;
+  categoryName?: string;
+  categoryColor?: string;
+}
+
+export interface TransactionSummary {
+  income: number;
+  expense: number;
+  balance: number;
+}
+
+export interface TransactionListResponse {
+  summary: TransactionSummary;
+  items: Transaction[];
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  type: string;
+  color: string;
+  currency: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: string;
+  color: string;
+  icon: string;
 }
 
 export const api = {
@@ -54,5 +102,40 @@ export const api = {
 
   me() {
     return request<{ user: User }>("/auth/me");
+  },
+
+  getTransactions(month: number, year: number) {
+    return request<TransactionListResponse>(
+      `/transactions?month=${month}&year=${year}`
+    );
+  },
+
+  createTransaction(data: {
+    description: string;
+    amount: number;
+    date: string;
+    dueDate: string;
+    type: TransactionType;
+    accountId: string;
+    categoryId: string;
+  }) {
+    return request<{ transaction: Transaction }>("/transactions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  togglePaid(id: string) {
+    return request<{ isPaid: boolean }>(`/transactions/${id}/toggle-paid`, {
+      method: "PATCH",
+    });
+  },
+
+  getAccounts() {
+    return request<{ items: Account[] }>("/accounts");
+  },
+
+  getCategories() {
+    return request<{ items: Category[] }>("/categories");
   },
 };

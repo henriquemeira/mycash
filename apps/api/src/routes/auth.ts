@@ -18,16 +18,16 @@ auth.post("/register", async (c) => {
   }>();
 
   if (!email || !password) {
-    return c.json({ error: "E-mail e senha são obrigatórios" }, 400);
+    return c.json({ error: "errors.email_password_required" }, 400);
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return c.json({ error: "E-mail inválido" }, 400);
+    return c.json({ error: "errors.invalid_email" }, 400);
   }
 
   if (password.length < 8) {
-    return c.json({ error: "A senha deve ter no mínimo 8 caracteres" }, 400);
+    return c.json({ error: "errors.password_too_short" }, 400);
   }
 
   const db = drizzle(c.env.DB);
@@ -40,7 +40,7 @@ auth.post("/register", async (c) => {
     .get();
 
   if (existing) {
-    return c.json({ error: "E-mail já cadastrado" }, 409);
+    return c.json({ error: "errors.email_already_exists" }, 409);
   }
 
   const passwordHash = await hashPassword(password);
@@ -126,7 +126,7 @@ auth.post("/login", async (c) => {
   }>();
 
   if (!email || !password) {
-    return c.json({ error: "E-mail e senha são obrigatórios" }, 400);
+    return c.json({ error: "errors.email_password_required" }, 400);
   }
 
   const db = drizzle(c.env.DB);
@@ -139,13 +139,13 @@ auth.post("/login", async (c) => {
     .get();
 
   if (!user || user.deletedAt !== null) {
-    return c.json({ error: "Credenciais inválidas" }, 401);
+    return c.json({ error: "errors.invalid_credentials" }, 401);
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
 
   if (!valid) {
-    return c.json({ error: "Credenciais inválidas" }, 401);
+    return c.json({ error: "errors.invalid_credentials" }, 401);
   }
 
   const now = new Date();
@@ -179,7 +179,7 @@ auth.post("/login", async (c) => {
 
 auth.post("/logout", (c) => {
   deleteCookie(c, "token", { path: "/" });
-  return c.json({ message: "Logout realizado com sucesso" });
+  return c.json({ message: "ok" });
 });
 
 auth.get("/me", authMiddleware, async (c) => {
@@ -193,7 +193,7 @@ auth.get("/me", authMiddleware, async (c) => {
     .get();
 
   if (!user || user.deletedAt !== null) {
-    return c.json({ error: "Usuário não encontrado" }, 404);
+    return c.json({ error: "errors.user_not_found" }, 404);
   }
 
   const salt = c.env.HASHIDS_SALT;

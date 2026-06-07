@@ -1,0 +1,80 @@
+{
+  "app": {
+    "title": "Minhas Finanças",
+    "loading": "Carregando...",
+    "logout": "Sair",
+    "welcome": "Bem-vindo"
+  },
+  "auth": {
+    "login": "Entrar",
+    "register": "Criar Conta",
+    "email": "E-mail",
+    "password": "Senha",
+    "email_placeholder": "seu@email.com",
+    "password_placeholder": "Mínimo 8 caracteres",
+    "submitting": "Aguarde...",
+    "dashboard_wip": "Dashboard em construção — Sprint 01 concluída."
+  },
+  "validation": {
+    "email_required": "Informe o e-mail",
+    "email_invalid": "E-mail inválido",
+    "password_required": "Informe a senha",
+    "password_min_length": "A senha deve ter no mínimo 8 caracteres"
+  },
+  "errors": {
+    "unknown": "Erro desconhecido",
+    "email_already_exists": "E-mail já cadastrado",
+    "invalid_credentials": "Credenciais inválidas",
+    "not_authenticated": "Não autenticado",
+    "token_invalid": "Token inválido ou expirado",
+    "user_not_found": "Usuário não encontrado",
+    "email_password_required": "E-mail e senha são obrigatórios",
+    "password_too_short": "A senha deve ter no mínimo 8 caracteres",
+    "invalid_email": "E-mail inválido",
+    "invalid_id": "ID inválido",
+    "transaction_not_found": "Transação não encontrada",
+    "missing_fields": "Preencha todos os campos obrigatórios",
+    "save_failed_retry": "Não foi possível salvar. Tentando novamente..."
+  },
+  "nav": {
+    "transactions": "Transações",
+    "new_transaction": "Nova Transação",
+    "settings": "Configurações"
+  },
+  "transactions": {
+    "title": "Transações",
+    "description": "Descrição",
+    "amount": "Valor",
+    "category": "Categoria",
+    "account": "Conta",
+    "date": "Data",
+    "due_date": "Vencimento",
+    "due": "Venc.",
+    "income": "Receitas",
+    "expense": "Despesas",
+    "transfer": "Transferência",
+    "balance": "Balanço",
+    "paid": "Pago",
+    "pending": "Pendente",
+    "no_transactions": "Nenhuma transação neste mês.",
+    "no_categories": "Sem categorias disponíveis.",
+    "daily_balance": "Saldo do dia",
+    "new_description_placeholder": "Descrição...",
+    "new_amount_placeholder": "0,00",
+    "add": "Adicionar"
+  },
+  "months": {
+    "1": "Janeiro",
+    "2": "Fevereiro",
+    "3": "Março",
+    "4": "Abril",
+    "5": "Maio",
+    "6": "Junho",
+    "7": "Julho",
+    "8": "Agosto",
+    "9": "Setembro",
+    "10": "Outubro",
+    "11": "Novembro",
+    "12": "Dezembro"
+  }
+}

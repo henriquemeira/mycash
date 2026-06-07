@@ -1,0 +1,80 @@
+{
+  "app": {
+    "title": "My Finances",
+    "loading": "Loading...",
+    "logout": "Logout",
+    "welcome": "Welcome"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "email_placeholder": "your@email.com",
+    "password_placeholder": "Minimum 8 characters",
+    "submitting": "Please wait...",
+    "dashboard_wip": "Dashboard under construction — Sprint 01 completed."
+  },
+  "validation": {
+    "email_required": "Email is required",
+    "email_invalid": "Invalid email",
+    "password_required": "Password is required",
+    "password_min_length": "Password must be at least 8 characters"
+  },
+  "errors": {
+    "unknown": "Unknown error",
+    "email_already_exists": "Email already registered",
+    "invalid_credentials": "Invalid credentials",
+    "not_authenticated": "Not authenticated",
+    "token_invalid": "Invalid or expired token",
+    "user_not_found": "User not found",
+    "email_password_required": "Email and password are required",
+    "password_too_short": "Password must be at least 8 characters",
+    "invalid_email": "Invalid email",
+    "invalid_id": "Invalid ID",
+    "transaction_not_found": "Transaction not found",
+    "missing_fields": "Please fill in all required fields",
+    "save_failed_retry": "Could not save. Retrying..."
+  },
+  "nav": {
+    "transactions": "Transactions",
+    "new_transaction": "New Transaction",
+    "settings": "Settings"
+  },
+  "transactions": {
+    "title": "Transactions",
+    "description": "Description",
+    "amount": "Amount",
+    "category": "Category",
+    "account": "Account",
+    "date": "Date",
+    "due_date": "Due Date",
+    "due": "Due",
+    "income": "Income",
+    "expense": "Expenses",
+    "transfer": "Transfer",
+    "balance": "Balance",
+    "paid": "Paid",
+    "pending": "Pending",
+    "no_transactions": "No transactions this month.",
+    "no_categories": "No categories available.",
+    "daily_balance": "Daily balance",
+    "new_description_placeholder": "Description...",
+    "new_amount_placeholder": "0.00",
+    "add": "Add"
+  },
+  "months": {
+    "1": "January",
+    "2": "February",
+    "3": "March",
+    "4": "April",
+    "5": "May",
+    "6": "June",
+    "7": "July",
+    "8": "August",
+    "9": "September",
+    "10": "October",
+    "11": "November",
+    "12": "December"
+  }
+}

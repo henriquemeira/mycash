@@ -15,13 +15,13 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
   const token = getCookie(c, "token");
 
   if (!token) {
-    return c.json({ error: "Não autenticado" }, 401);
+    return c.json({ error: "errors.not_authenticated" }, 401);
   }
 
   const payload = await verifyJwt(token, c.env.JWT_SECRET);
 
   if (!payload) {
-    return c.json({ error: "Token inválido ou expirado" }, 401);
+    return c.json({ error: "errors.token_invalid" }, 401);
   }
 
   c.set("userId", payload.sub);
