@@ -7,12 +7,13 @@ import {
   type ColumnDef,
   type Row,
 } from "@tanstack/react-table";
-import { Plus, ChevronDown, ChevronUp, Trash2, Pencil, X, Repeat, CalendarRange, Bell } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, Trash2, Pencil, X, Repeat, CalendarRange, Bell, Paperclip } from "lucide-react";
 import type { Transaction, Category, Account, TransactionType, RecurrenceType, CreateTransactionData, UpdateTransactionData } from "@/lib/api";
 import { api } from "@/lib/api";
 import { PaidToggle } from "./PaidToggle";
 import { Modal } from "./Modal";
 import { RecurrenceModal } from "./RecurrenceModal";
+import { AttachmentManager } from "./AttachmentManager";
 import { useToast } from "@/contexts/ToastContext";
 
 function formatCurrency(value: number): string {
@@ -96,6 +97,8 @@ interface TransactionGridProps {
   onDeleteTransaction: (id: string, scope: "single" | "future") => Promise<void>;
   onRefresh: () => void;
   defaultAccountId?: string;
+  expandedTxId?: string | null;
+  onExpandTx?: (id: string | null) => void;
 }
 
 export function TransactionGrid({
@@ -107,6 +110,8 @@ export function TransactionGrid({
   onDeleteTransaction,
   onRefresh,
   defaultAccountId,
+  expandedTxId,
+  onExpandTx,
 }: TransactionGridProps) {
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
@@ -344,12 +349,15 @@ export function TransactionGrid({
             {row.original.reminderDate && (
               <Bell size={14} className="text-amber-400 dark:text-amber-500" />
             )}
+            {(row.original.attachmentCount ?? 0) > 0 && (
+              <Paperclip size={14} className="text-gray-400 dark:text-gray-500" />
+            )}
           </div>
         ),
       },
       {
         id: "actions",
-        size: 60,
+        size: 80,
         header: "",
         cell: ({ row }) => (
           <div className="flex items-center gap-0.5">
@@ -358,6 +366,17 @@ export function TransactionGrid({
               type={row.original.type}
               onToggle={() => onTogglePaid(row.original.id)}
             />
+            <button
+              onClick={() => onExpandTx?.(expandedTxId === row.original.id ? null : row.original.id)}
+              className={`rounded p-1 transition-colors ${
+                (row.original.attachmentCount ?? 0) > 0
+                  ? "text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                  : "text-gray-300 hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-400"
+              }`}
+              title={t("transactions.attachments")}
+            >
+              <Paperclip size={14} />
+            </button>
             <button
               onClick={() => openEditModal(row.original)}
               className="rounded p-1 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
@@ -376,7 +395,7 @@ export function TransactionGrid({
         ),
       },
     ],
-    [t, onTogglePaid, openEditModal]
+    [t, onTogglePaid, openEditModal, expandedTxId, onExpandTx]
   );
 
   const table = useReactTable({
@@ -987,8 +1006,8 @@ export function TransactionGrid({
                       const row = rowMap.get(item.id);
                       if (!row) return null;
                       return (
+                        <Fragment key={item.id}>
                         <tr
-                          key={item.id}
                           className={`border-b border-gray-100 transition-opacity duration-200 dark:border-gray-800 ${
                             item.isPaid
                               ? "opacity-100"
@@ -1004,6 +1023,18 @@ export function TransactionGrid({
                             </td>
                           ))}
                         </tr>
+                        {expandedTxId === item.id && (
+                          <tr className="border-b border-gray-100 dark:border-gray-800">
+                            <td colSpan={colCount} className="px-4 py-2">
+                              <AttachmentManager
+                                transactionId={item.id}
+                                attachmentCount={item.attachmentCount ?? 0}
+                                onAttachmentChange={onRefresh}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       );
                     })}
                     <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
@@ -1039,68 +1070,90 @@ export function TransactionGrid({
                 {group.items.map((item) => (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-3 border-b border-gray-100 px-4 py-3 transition-opacity duration-200 dark:border-gray-800 ${
+                    className={`border-b border-gray-100 px-4 py-3 transition-opacity duration-200 dark:border-gray-800 ${
                       item.isPaid
                         ? "opacity-100"
                         : "opacity-50 dark:opacity-60"
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {item.description}
-                        </span>
-                        {item.recurrenceId && (
-                          <Repeat size={12} className="text-gray-400 dark:text-gray-500" />
-                        )}
-                        {item.reminderDate && (
-                          <Bell size={12} className="text-amber-400 dark:text-amber-500" />
-                        )}
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {item.description}
+                          </span>
+                          {item.recurrenceId && (
+                            <Repeat size={12} className="text-gray-400 dark:text-gray-500" />
+                          )}
+                          {item.reminderDate && (
+                            <Bell size={12} className="text-amber-400 dark:text-amber-500" />
+                          )}
+                          {(item.attachmentCount ?? 0) > 0 && (
+                            <Paperclip size={12} className="text-gray-400 dark:text-gray-500" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="inline-block h-2 w-2 rounded-full"
+                            style={{ backgroundColor: item.categoryColor }}
+                          />
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {item.categoryName}
+                          </span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            &middot; {item.accountName}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="inline-block h-2 w-2 rounded-full"
-                          style={{ backgroundColor: item.categoryColor }}
+
+                      <span
+                        className={`text-sm font-semibold ${amountColorClass(item.type)}`}
+                      >
+                        {item.type === "income"
+                          ? "+"
+                          : item.type === "expense"
+                            ? "-"
+                            : "\u21C4"}
+                        {formatCurrency(item.amount)}
+                      </span>
+
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => onExpandTx?.(expandedTxId === item.id ? null : item.id)}
+                          className={`rounded p-1 transition-colors ${
+                            (item.attachmentCount ?? 0) > 0
+                              ? "text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                              : "text-gray-300 hover:bg-gray-50 hover:text-gray-500 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          <Paperclip size={14} />
+                        </button>
+                        <PaidToggle
+                          isPaid={item.isPaid}
+                          type={item.type}
+                          onToggle={() => onTogglePaid(item.id)}
                         />
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {item.categoryName}
-                        </span>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                          &middot; {item.accountName}
-                        </span>
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="rounded p-1 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(item)}
+                          className="rounded p-1 text-gray-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
-
-                    <span
-                      className={`text-sm font-semibold ${amountColorClass(item.type)}`}
-                    >
-                      {item.type === "income"
-                        ? "+"
-                        : item.type === "expense"
-                          ? "-"
-                          : "\u21C4"}
-                      {formatCurrency(item.amount)}
-                    </span>
-
-                    <div className="flex items-center gap-0.5">
-                      <PaidToggle
-                        isPaid={item.isPaid}
-                        type={item.type}
-                        onToggle={() => onTogglePaid(item.id)}
+                    {expandedTxId === item.id && (
+                      <AttachmentManager
+                        transactionId={item.id}
+                        attachmentCount={item.attachmentCount ?? 0}
+                        onAttachmentChange={onRefresh}
                       />
-                      <button
-                        onClick={() => openEditModal(item)}
-                        className="rounded p-1 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(item)}
-                        className="rounded p-1 text-gray-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ))}
                 <div className="flex items-center justify-end border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">

@@ -11,11 +11,12 @@ async function request<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(`${API_BASE}${url}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
       ...options.headers,
     },
   });
@@ -59,6 +60,7 @@ export interface Transaction {
   accountName?: string;
   categoryName?: string;
   categoryColor?: string;
+  attachmentCount?: number;
 }
 
 export interface TransactionSummary {
@@ -126,6 +128,22 @@ export interface UpdateTransactionData {
   scope?: "single" | "future";
 }
 
+export interface Attachment {
+  id: string;
+  transactionId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  status: "pending" | "confirmed";
+}
+
+export interface TransactionFilters {
+  search?: string;
+  accountId?: string;
+  categoryId?: string;
+  type?: TransactionType | "";
+}
+
 export const api = {
   register(email: string, password: string) {
     return request<{ user: User }>("/auth/register", {
@@ -149,10 +167,18 @@ export const api = {
     return request<{ user: User }>("/auth/me");
   },
 
-  getTransactions(month: number, year: number, page: number = 1, limit: number = 50) {
-    return request<TransactionListResponse>(
-      `/transactions?month=${month}&year=${year}&page=${page}&limit=${limit}`
-    );
+  getTransactions(month: number, year: number, page?: number, limit?: number, filters?: TransactionFilters) {
+    const params = new URLSearchParams({
+      month: String(month),
+      year: String(year),
+      page: String(page || 1),
+      limit: String(limit || 50),
+    });
+    if (filters?.search) params.set("search", filters.search);
+    if (filters?.accountId) params.set("accountId", filters.accountId);
+    if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters?.type) params.set("type", filters.type);
+    return request<TransactionListResponse>(`/transactions?${params.toString()}`);
   },
 
   createTransaction(data: CreateTransactionData) {
@@ -194,6 +220,47 @@ export const api = {
     return request<{ category: Category }>("/categories", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  presignAttachment(transactionId: string, fileName: string, contentType: string, size: number) {
+    return request<{ attachmentId: string; uploadUrl: string; fileKey: string }>(
+      `/attachments/${transactionId}/presign`,
+      {
+        method: "POST",
+        body: JSON.stringify({ fileName, contentType, size }),
+      }
+    );
+  },
+
+  confirmAttachment(attachmentId: string) {
+    return request<{ attachment: Attachment }>(`/attachments/${attachmentId}/confirm`, {
+      method: "POST",
+    });
+  },
+
+  listAttachments(transactionId: string) {
+    return request<{ items: Attachment[] }>(`/attachments/list/${transactionId}`);
+  },
+
+  deleteAttachment(attachmentId: string) {
+    return request<{ deleted: boolean }>(`/attachments/${attachmentId}`, {
+      method: "DELETE",
+    });
+  },
+
+  getAttachmentDownloadUrl(attachmentId: string) {
+    return request<{ downloadUrl: string; fileName: string; contentType: string }>(
+      `/attachments/${attachmentId}/download`
+    );
+  },
+
+  uploadAttachment(transactionId: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<{ attachment: Attachment }>(`/attachments/${transactionId}/upload`, {
+      method: "POST",
+      body: formData,
     });
   },
 };

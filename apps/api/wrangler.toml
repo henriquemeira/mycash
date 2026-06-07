@@ -5,6 +5,11 @@ compatibility_date = "2025-03-01"
 [vars]
 # JWT_SECRET = ""
 # HASHIDS_SALT = ""
+# S3_ENDPOINT = ""
+# S3_ACCESS_KEY = ""
+# S3_SECRET_KEY = ""
+# S3_BUCKET = ""
+# S3_REGION = "auto"
 
 [[d1_databases]]
 binding = "DB"

@@ -1,5 +1,31 @@
 import { sqliteTable, integer, text, index } from "drizzle-orm/sqlite-core";
 
+export const attachments = sqliteTable(
+  "attachments",
+  {
+    id: text("id").primaryKey(),
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    fileKey: text("file_key").notNull(),
+    status: text("status", { enum: ["pending", "confirmed"] }).default("pending").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("attachments_transaction_idx").on(table.transactionId, table.deletedAt),
+    index("attachments_user_idx").on(table.userId),
+  ]
+);
+
 export const users = sqliteTable(
   "users",
   {

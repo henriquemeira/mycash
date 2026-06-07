@@ -34,7 +34,12 @@
     "invalid_id": "ID inválido",
     "transaction_not_found": "Transação não encontrada",
     "missing_fields": "Preencha todos os campos obrigatórios",
-    "save_failed_retry": "Não foi possível salvar. Tentando novamente..."
+    "save_failed_retry": "Não foi possível salvar. Tentando novamente...",
+    "attachment_too_large": "Arquivo excede o limite de 5MB.",
+    "attachment_invalid_type": "Tipo de arquivo não permitido.",
+    "attachment_blocked_type": "Tipo de arquivo bloqueado.",
+    "attachment_not_found": "Anexo não encontrado.",
+    "s3_access_denied": "Acesso negado ao storage. Verifique se o token R2 tem permissão 'Object Read & Write'."
   },
   "nav": {
     "transactions": "Transações",
@@ -94,7 +99,21 @@
     "delete_confirm_title": "Excluir transação",
     "delete_confirm_message": "Deseja excluir \"{{description}}\"? Esta ação não pode ser desfeita.",
     "delete_confirm_cancel": "Cancelar",
-    "delete_confirm_ok": "Excluir"
+    "delete_confirm_ok": "Excluir",
+    "search_placeholder": "Buscar transação...",
+    "filters": "Filtros",
+    "all_types": "Todos os tipos",
+    "all_accounts": "Todas as contas",
+    "all_categories": "Todas as categorias",
+    "clear_filters": "Limpar filtros",
+    "export_csv": "Exportar CSV",
+    "attach_file": "Anexar arquivo",
+    "upload_file": "Enviar arquivo",
+    "uploading": "Enviando...",
+    "attachments": "Anexos",
+    "add_attachment": "Adicionar anexo",
+    "download_attachment": "Baixar anexo",
+    "delete_attachment": "Excluir anexo"
   },
   "recurrence": {
     "edit_title": "Editar transação recorrente",

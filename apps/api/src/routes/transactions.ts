@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { eq, and, gte, lte, isNull, asc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, asc, sql, like, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
   transactions,
   accounts,
   categories,
+  attachments,
 } from "@mycash/database/schema";
 import { newId } from "../utils/id";
 import { encodeId, decodeId } from "../utils/hashid";
@@ -25,6 +26,11 @@ txRoutes.get("/", async (c) => {
   const limit = Math.min(100, Math.max(1, parseInt(c.req.query("limit") || "50", 10) || 50));
   const offset = (page - 1) * limit;
 
+  const searchQuery = c.req.query("search") || "";
+  const filterAccountId = c.req.query("accountId") || "";
+  const filterCategoryId = c.req.query("categoryId") || "";
+  const filterType = c.req.query("type") || "";
+
   const now = new Date();
   const m = month ? parseInt(month, 10) : now.getMonth() + 1;
   const y = year ? parseInt(year, 10) : now.getFullYear();
@@ -36,12 +42,32 @@ txRoutes.get("/", async (c) => {
   const db = drizzle(c.env.DB);
   const salt = c.env.HASHIDS_SALT;
 
-  const whereCondition = and(
+  const conditions = [
     eq(transactions.userId, userId),
     gte(transactions.dueDate, startDate),
     lte(transactions.dueDate, endDate),
-    isNull(transactions.deletedAt)
-  );
+    isNull(transactions.deletedAt),
+  ];
+
+  if (searchQuery) {
+    conditions.push(like(transactions.description, `%${searchQuery}%`));
+  }
+
+  const decodedAccountId = filterAccountId ? decodeId(filterAccountId, salt) : null;
+  if (decodedAccountId) {
+    conditions.push(eq(transactions.accountId, decodedAccountId));
+  }
+
+  const decodedCategoryId = filterCategoryId ? decodeId(filterCategoryId, salt) : null;
+  if (decodedCategoryId) {
+    conditions.push(eq(transactions.categoryId, decodedCategoryId));
+  }
+
+  if (filterType === "income" || filterType === "expense" || filterType === "transfer") {
+    conditions.push(eq(transactions.type, filterType));
+  }
+
+  const whereCondition = and(...conditions);
 
   const summaryRows = await db
     .select({
@@ -94,6 +120,28 @@ txRoutes.get("/", async (c) => {
     .limit(limit)
     .offset(offset);
 
+  const txIds = rows.map((r) => r.id);
+
+  const attachmentCounts =
+    txIds.length > 0
+      ? await db
+          .select({
+            transactionId: attachments.transactionId,
+            count: sql<number>`cast(count(*) as integer)`,
+          })
+          .from(attachments)
+          .where(
+            and(
+              eq(attachments.status, "confirmed"),
+              isNull(attachments.deletedAt),
+              inArray(attachments.transactionId, txIds)
+            )
+          )
+          .groupBy(attachments.transactionId)
+      : [];
+
+  const attachmentMap = new Map(attachmentCounts.map((r) => [r.transactionId, r.count]));
+
   const items = rows.map((row) => ({
     id: encodeId(row.id, salt),
     description: row.description,
@@ -112,6 +160,7 @@ txRoutes.get("/", async (c) => {
     accountName: row.accountName,
     categoryName: row.categoryName,
     categoryColor: row.categoryColor,
+    attachmentCount: attachmentMap.get(row.id) || 0,
   }));
 
   return c.json({

@@ -7,19 +7,25 @@ import {
   type Category,
   type TransactionType,
   type CreateTransactionData,
+  type TransactionFilters,
 } from "@/lib/api";
 import { MonthSelector } from "@/components/MonthSelector";
 import { BalanceRibbon } from "@/components/BalanceRibbon";
 import { TransactionGrid } from "@/components/TransactionGrid";
+import { TransactionToolbar } from "@/components/TransactionToolbar";
 import { useToast } from "@/contexts/ToastContext";
 import { useTranslation } from "react-i18next";
 import { useFrame } from "@/contexts/FrameContext";
 
 const EMPTY_SUMMARY: TransactionSummary = { income: 0, expense: 0, balance: 0 };
 
+function formatCurrencyCSV(value: number): string {
+  return (value / 100).toFixed(2);
+}
+
 export function TransactionsPage() {
   const { framed } = useFrame();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -32,12 +38,14 @@ export function TransactionsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [filters, setFilters] = useState<TransactionFilters>({});
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setPage(1);
     const [txRes, accRes, catRes] = await Promise.all([
-      api.getTransactions(month, year, 1, 50),
+      api.getTransactions(month, year, 1, 50, filters),
       api.getAccounts(),
       api.getCategories(),
     ]);
@@ -49,7 +57,7 @@ export function TransactionsPage() {
     if (accRes.data) setAccounts(accRes.data.items);
     if (catRes.data) setCategories(catRes.data.items);
     setLoading(false);
-  }, [month, year]);
+  }, [month, year, filters]);
 
   useEffect(() => {
     fetchData();
@@ -58,14 +66,14 @@ export function TransactionsPage() {
   const handleLoadMore = useCallback(async () => {
     const nextPage = page + 1;
     setLoadingMore(true);
-    const txRes = await api.getTransactions(month, year, nextPage, 50);
+    const txRes = await api.getTransactions(month, year, nextPage, 50, filters);
     if (txRes.data) {
       setItems((prev) => [...prev, ...txRes.data!.items]);
       setHasMore(txRes.data!.pagination.hasMore);
       setPage(nextPage);
     }
     setLoadingMore(false);
-  }, [month, year, page]);
+  }, [month, year, page, filters]);
 
   const handleTogglePaid = useCallback(
     async (id: string) => {
@@ -117,6 +125,7 @@ export function TransactionsPage() {
         accountName: account?.name,
         categoryName: category?.name,
         categoryColor: category?.color,
+        attachmentCount: 0,
       };
 
       setItems((prev) => [...prev, optimisticTx]);
@@ -235,6 +244,50 @@ export function TransactionsPage() {
     setYear(y);
   };
 
+  const handleExportCSV = useCallback(() => {
+    const locale = i18n.language === "pt" ? "pt-BR" : "en-US";
+    const headers = [
+      t("transactions.description"),
+      t("transactions.amount"),
+      t("transactions.date"),
+      t("transactions.due_date"),
+      t("transactions.type"),
+      t("transactions.category"),
+      t("transactions.account"),
+      t("transactions.paid"),
+    ];
+
+    const rows = items.map((item) => {
+      const typeLabel =
+        item.type === "income" ? t("transactions.income") :
+        item.type === "expense" ? t("transactions.expense") :
+        t("transactions.transfer");
+
+      return [
+        `"${item.description.replace(/"/g, '""')}"`,
+        formatCurrencyCSV(item.amount),
+        item.date,
+        item.dueDate,
+        typeLabel,
+        `"${item.categoryName || ""}"`,
+        `"${item.accountName || ""}"`,
+        item.isPaid ? t("transactions.paid") : t("transactions.pending"),
+      ];
+    });
+
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mycash-${year}-${String(month).padStart(2, "0")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [items, month, year, t, i18n.language]);
+
   const defaultAccountId = accounts[0]?.id;
 
   return (
@@ -245,6 +298,16 @@ export function TransactionsPage() {
 
       <div className={framed ? "w-full md:mx-auto md:max-w-6xl md:px-6 lg:px-8" : "w-full"}>
         <BalanceRibbon summary={summary} />
+
+        <TransactionToolbar
+          filters={filters}
+          onFiltersChange={setFilters}
+          accounts={accounts}
+          categories={categories}
+          onExportCSV={handleExportCSV}
+          onOpenAttachments={(txId) => setExpandedTxId(txId)}
+          activeTransactionId={expandedTxId || undefined}
+        />
 
         {loading ? (
           <div className="px-4 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
@@ -260,6 +323,8 @@ export function TransactionsPage() {
             onDeleteTransaction={handleDelete}
             onRefresh={fetchData}
             defaultAccountId={defaultAccountId}
+            expandedTxId={expandedTxId}
+            onExpandTx={setExpandedTxId}
           />
         )}
 

@@ -4,6 +4,7 @@ import auth from "./routes/auth";
 import transactions from "./routes/transactions";
 import accounts from "./routes/accounts";
 import categories from "./routes/categories";
+import attachments from "./routes/attachments";
 import type { Env } from "./env";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -22,5 +23,6 @@ app.route("/auth", auth);
 app.route("/transactions", transactions);
 app.route("/accounts", accounts);
 app.route("/categories", categories);
+app.route("/attachments", attachments);
 
 export default app;

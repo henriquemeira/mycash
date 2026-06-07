@@ -16,6 +16,9 @@ Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** co
 - Banco de dados compatível com Cloudflare D1, PostgreSQL ou SQLite
 - Storage S3-compatible (Cloudflare R2 ou MinIO)
 - Soft delete para preservação de histórico
+- Upload de comprovantes via URLs pré-assinadas (Cloudflare R2 / MinIO)
+- Filtros avançados (busca textual, conta, categoria, tipo)
+- Exportação CSV client-side
 
 ## Stack Tecnológica
 
@@ -73,7 +76,35 @@ Edite `apps/api/.dev.vars` com suas chaves:
 ```env
 JWT_SECRET=sua-chave-secreta-jwt-minimo-32-caracteres
 HASHIDS_SALT=salt-para-ofuscacao-de-ids
+S3_ENDPOINT=http://localhost:9000
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin
+S3_BUCKET=mycash
+S3_REGION=us-east-1
 ```
+
+### Configuração do MinIO (desenvolvimento local)
+
+Para usar anexos localmente, instale e execute o [MinIO](https://min.io/):
+
+```bash
+# Com Docker
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+
+# Criar bucket
+mc alias set myminio http://localhost:9000 minioadmin minioadmin
+mc mb myminio/mycash
+```
+
+Para Cloudflare R2, configure as variáveis no painel do Workers:
+- `S3_ENDPOINT`: URL do S3 do R2 (ex: `https://<account_id>.r2.cloudflarestorage.com`)
+- `S3_ACCESS_KEY`: Access Key ID gerado no dashboard R2
+- `S3_SECRET_KEY`: Secret Access Key gerado no dashboard R2
+- `S3_BUCKET`: Nome do bucket R2
+- `S3_REGION`: `auto`
 
 ## Desenvolvimento Local
 
@@ -107,9 +138,13 @@ pnpm db:migrate       # Aplicar migrações no banco
 |----------|-----------|-------------|
 | `JWT_SECRET` | Chave secreta para assinatura de tokens JWT | Sim |
 | `HASHIDS_SALT` | Salt para ofuscação de IDs via Hashids | Sim |
-| `S3_ENDPOINT` | Endpoint do storage S3-compatible (R2/MinIO) | Não |
-| `S3_ACCESS_KEY` | Access key do storage | Não |
-| `S3_SECRET_KEY` | Secret key do storage | Não |
+| `S3_ENDPOINT` | Endpoint do storage S3-compatible (R2/MinIO) | Sim* |
+| `S3_ACCESS_KEY` | Access key do storage | Sim* |
+| `S3_SECRET_KEY` | Secret key do storage | Sim* |
+| `S3_BUCKET` | Nome do bucket S3 | Sim* |
+| `S3_REGION` | Região do storage (R2: `auto`, MinIO: `us-east-1`) | Não |
+
+*\* Obrigatórias para funcionalidade de anexos. Sem essas variáveis, o sistema funciona normalmente mas sem upload de comprovantes.*
 
 ### Banco de Dados
 
@@ -120,6 +155,7 @@ O schema está em `packages/database/src/schema.ts`. Tabelas principais:
 - **categories** - Categorias de transações (income/expense)
 - **transactions** - Lançamentos financeiros
 - **recurrence_rules** - Regras de recorrência
+- **attachments** - Anexos/comprovantes vinculados a transações
 
 ## Deploy
 
@@ -179,6 +215,8 @@ Campo `deleted_at` em todas as tabelas principais para preservação de históri
 - [Guia Arquitetural Completo](docs/guia.md)
 - [Sprint 01 - Planejamento](docs/sprints/sprint-01/01-planejamento.md)
 - [Sprint 01 - Proposta BD](docs/sprints/sprint-01/02-proposta-bd.md)
+- [Sprint 04 - Planejamento](docs/sprints/sprint-04/01-planejamento.md)
+- [Sprint 04 - Plano de Ação](docs/sprints/sprint-04/02-plano-de-acao.md)
 
 ## Contribuição
 
