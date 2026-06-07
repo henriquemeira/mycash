@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useState, useCallback, useMemo, useRef, type FormEvent, Fragment } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, type FormEvent, Fragment } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { PaidToggle } from "./PaidToggle";
 import { Modal } from "./Modal";
 import { RecurrenceModal } from "./RecurrenceModal";
+import { useToast } from "@/contexts/ToastContext";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -72,6 +73,20 @@ const typeColorClasses = (t: TransactionType) => {
 
 const RECURRENCE_OPTIONS = [2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36, 48];
 
+function getRandomColor(seed: string): string {
+  const colors = [
+    "#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e",
+    "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6",
+    "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
+    "#f43f5e",
+  ];
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
 interface TransactionGridProps {
   items: Transaction[];
   categories: Category[];
@@ -94,6 +109,7 @@ export function TransactionGrid({
   defaultAccountId,
 }: TransactionGridProps) {
   const { t, i18n } = useTranslation();
+  const { showToast } = useToast();
   const descRef = useRef<HTMLInputElement>(null);
   const [desc, setDesc] = useState("");
   const [amountCents, setAmountCents] = useState(0);
@@ -105,6 +121,10 @@ export function TransactionGrid({
   const [accountId, setAccountId] = useState(defaultAccountId || "");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState("");
+  const [highlightedCategoryIndex, setHighlightedCategoryIndex] = useState(0);
+  const [accountQuery, setAccountQuery] = useState("");
+  const [highlightedAccountIndex, setHighlightedAccountIndex] = useState(0);
 
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [notes, setNotes] = useState("");
@@ -141,14 +161,59 @@ export function TransactionGrid({
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editAccountId, setEditAccountId] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editReminderDate, setEditReminderDate] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
 
   const filteredCategories = categories.filter((cat) => {
     if (type === "transfer") return true;
     return cat.type === type;
-  });
+  }).filter((cat) =>
+    categoryQuery.trim() === "" ||
+    cat.name.toLowerCase().includes(categoryQuery.trim().toLowerCase())
+  );
+
+  const filteredAccounts = accounts.filter((acc) =>
+    accountQuery.trim() === "" ||
+    acc.name.toLowerCase().includes(accountQuery.trim().toLowerCase())
+  );
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const selectedAccount = accounts.find((a) => a.id === accountId);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      setCategoryQuery(selectedCategory.name);
+    } else {
+      setCategoryQuery("");
+    }
+  }, [selectedCategory?.id]);
+
+  useEffect(() => {
+    if (selectedAccount) {
+      setAccountQuery(selectedAccount.name);
+    } else {
+      setAccountQuery("");
+    }
+  }, [selectedAccount?.id]);
+
+  const handleCreateCategory = useCallback(
+    async (name: string) => {
+      const { data, error } = await api.createCategory({
+        name,
+        type: type === "transfer" ? "expense" : type,
+        color: getRandomColor(name),
+      });
+      if (error || !data) {
+        showToast(t("errors.save_failed_retry"), "error");
+        return;
+      }
+      setCategoryId(data.category.id);
+      setCategoryQuery(data.category.name);
+      setShowCategoryDropdown(false);
+      onRefresh();
+    },
+    [type, showToast, t, onRefresh]
+  );
 
   const handleAmountChange = useCallback((raw: string) => {
     const cents = parseCurrencyInput(raw);
@@ -179,6 +244,8 @@ export function TransactionGrid({
       setEditCategoryId(tx.categoryId);
       setEditAccountId(tx.accountId);
       setEditNotes(tx.notes || "");
+      setEditReminderDate(tx.reminderDate || "");
+      setEditDueDate(tx.dueDate);
       setEditModal({ open: true, transaction: tx });
     },
     []
@@ -195,14 +262,16 @@ export function TransactionGrid({
         amount: editAmountCents || undefined,
         categoryId: editCategoryId || undefined,
         accountId: editAccountId || undefined,
+        dueDate: editDueDate || undefined,
         notes: editNotes || undefined,
+        reminderDate: editReminderDate || null,
         scope,
       };
 
       await api.updateTransaction(tx.id, data);
       onRefresh();
     },
-    [editModal, editDesc, editAmountCents, editCategoryId, editAccountId, editNotes, onRefresh]
+    [editModal, editDesc, editAmountCents, editCategoryId, editAccountId, editNotes, editReminderDate, editDueDate, onRefresh]
   );
 
   const columns = useMemo<ColumnDef<Transaction>[]>(
@@ -264,13 +333,19 @@ export function TransactionGrid({
         },
       },
       {
-        id: "recurrence",
+        id: "icons",
         header: "",
-        size: 32,
-        cell: ({ row }) =>
-          row.original.recurrenceId ? (
-            <Repeat size={14} className="text-gray-400 dark:text-gray-500" />
-          ) : null,
+        size: 52,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            {row.original.recurrenceId && (
+              <Repeat size={14} className="text-gray-400 dark:text-gray-500" />
+            )}
+            {row.original.reminderDate && (
+              <Bell size={14} className="text-amber-400 dark:text-amber-500" />
+            )}
+          </div>
+        ),
       },
       {
         id: "actions",
@@ -385,6 +460,8 @@ export function TransactionGrid({
         setEditCategoryId(tx.categoryId);
         setEditAccountId(tx.accountId);
         setEditNotes(tx.notes || "");
+        setEditReminderDate(tx.reminderDate || "");
+        setEditDueDate(tx.dueDate);
         setEditModal({ open: true, transaction: { ...tx, _scope: scope } as Transaction & { _scope?: string } });
       }
     },
@@ -392,10 +469,34 @@ export function TransactionGrid({
   );
 
   const handleInsert = useCallback(
-    (e: FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault();
       if (!desc.trim() || amountCents <= 0) return;
-      if (!categoryId || !accountId || !dueDate) return;
+      if (!dueDate) return;
+
+      let finalCategoryId = categoryId;
+      if (!finalCategoryId && categoryQuery.trim()) {
+        const exactMatch = categories.find(
+          (c) =>
+            c.name.toLowerCase() === categoryQuery.trim().toLowerCase() &&
+            (type === "transfer" || c.type === type)
+        );
+        if (exactMatch) {
+          finalCategoryId = exactMatch.id;
+        }
+      }
+
+      let finalAccountId = accountId;
+      if (!finalAccountId && accountQuery.trim()) {
+        const exactMatch = accounts.find(
+          (a) => a.name.toLowerCase() === accountQuery.trim().toLowerCase()
+        );
+        if (exactMatch) {
+          finalAccountId = exactMatch.id;
+        }
+      }
+
+      if (!finalCategoryId || !finalAccountId) return;
 
       const data: CreateTransactionData = {
         description: desc.trim(),
@@ -403,8 +504,8 @@ export function TransactionGrid({
         date: today,
         dueDate,
         type,
-        accountId,
-        categoryId,
+        accountId: finalAccountId,
+        categoryId: finalCategoryId,
         notes: notes.trim() || undefined,
         reminderDate: reminderDate || undefined,
       };
@@ -421,12 +522,15 @@ export function TransactionGrid({
         };
       }
 
-      onCreateTransaction(data);
+      await onCreateTransaction(data);
 
       setDesc("");
       setAmountCents(0);
       setAmountDisplay("");
       setCategoryId("");
+      setCategoryQuery("");
+      setAccountId(defaultAccountId || "");
+      setAccountQuery(selectedAccount?.name || "");
       setNotes("");
       setReminderDate("");
       setRecurrenceType("none");
@@ -434,7 +538,7 @@ export function TransactionGrid({
       setShowMoreOptions(false);
       descRef.current?.focus();
     },
-    [desc, amountCents, dueDate, type, categoryId, accountId, today, onCreateTransaction, notes, reminderDate, recurrenceType, installmentCount]
+    [desc, amountCents, dueDate, type, categoryId, accountId, today, onCreateTransaction, notes, reminderDate, recurrenceType, installmentCount, categoryQuery, accountQuery, categories, accounts, defaultAccountId, selectedAccount?.name]
   );
 
   const colCount = columns.length;
@@ -486,39 +590,76 @@ export function TransactionGrid({
           />
 
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowCategoryDropdown(!showCategoryDropdown);
-                setShowAccountDropdown(false);
-              }}
-              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-            >
-              {selectedCategory ? (
-                <>
-                  <span
-                    className="inline-block h-2 w-2 rounded-full"
-                    style={{ backgroundColor: selectedCategory.color }}
-                  />
-                  {selectedCategory.name}
-                </>
-              ) : (
-                t("transactions.category")
+            <div className="flex items-center gap-1">
+              {selectedCategory && (
+                <span
+                  className="ml-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: selectedCategory.color }}
+                />
               )}
-              <ChevronDown size={12} />
-            </button>
+              <input
+                type="text"
+                value={categoryQuery}
+                onChange={(e) => {
+                  setCategoryQuery(e.target.value);
+                  setCategoryId("");
+                  setShowCategoryDropdown(true);
+                  setHighlightedCategoryIndex(0);
+                }}
+                onFocus={() => {
+                  setShowCategoryDropdown(true);
+                  setShowAccountDropdown(false);
+                  setHighlightedCategoryIndex(0);
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowCategoryDropdown(false), 150);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setShowCategoryDropdown(true);
+                    setHighlightedCategoryIndex((prev) =>
+                      Math.min(prev + 1, filteredCategories.length - 1)
+                    );
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setShowCategoryDropdown(true);
+                    setHighlightedCategoryIndex((prev) => Math.max(prev - 1, 0));
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    const items = filteredCategories;
+                    if (items.length > 0 && highlightedCategoryIndex < items.length) {
+                      const cat = items[highlightedCategoryIndex];
+                      setCategoryId(cat.id);
+                      setCategoryQuery(cat.name);
+                      setShowCategoryDropdown(false);
+                    }
+                  } else if (e.key === "Escape") {
+                    setShowCategoryDropdown(false);
+                  }
+                }}
+                placeholder={t("transactions.category")}
+                className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder:text-gray-500"
+              />
+            </div>
 
             {showCategoryDropdown && (
               <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
-                {filteredCategories.map((cat) => (
+                {filteredCategories.map((cat, index) => (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => {
+                    onMouseDown={(e) => {
+                      e.preventDefault();
                       setCategoryId(cat.id);
+                      setCategoryQuery(cat.name);
                       setShowCategoryDropdown(false);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300 ${
+                      index === highlightedCategoryIndex
+                        ? "bg-gray-100 dark:bg-gray-600"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-600"
+                    }`}
                   >
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
@@ -527,7 +668,31 @@ export function TransactionGrid({
                     {cat.name}
                   </button>
                 ))}
-                {filteredCategories.length === 0 && (
+                {categoryQuery.trim() !== "" &&
+                  !filteredCategories.some(
+                    (c) => c.name.toLowerCase() === categoryQuery.trim().toLowerCase()
+                  ) && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (
+                          window.confirm(
+                            t("transactions.create_category_confirm", {
+                              name: categoryQuery.trim(),
+                            })
+                          )
+                        ) {
+                          handleCreateCategory(categoryQuery.trim());
+                        }
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                    >
+                      <Plus size={14} />
+                      {t("transactions.create_category", { name: categoryQuery.trim() })}
+                    </button>
+                  )}
+                {filteredCategories.length === 0 && categoryQuery.trim() === "" && (
                   <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
                     {t("transactions.no_categories")}
                   </div>
@@ -537,29 +702,68 @@ export function TransactionGrid({
           </div>
 
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAccountDropdown(!showAccountDropdown);
-                setShowCategoryDropdown(false);
+            <input
+              type="text"
+              value={accountQuery}
+              onChange={(e) => {
+                setAccountQuery(e.target.value);
+                setAccountId("");
+                setShowAccountDropdown(true);
+                setHighlightedAccountIndex(0);
               }}
-              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-            >
-              {selectedAccount ? selectedAccount.name : t("transactions.account")}
-              <ChevronDown size={12} />
-            </button>
+              onFocus={() => {
+                setShowAccountDropdown(true);
+                setShowCategoryDropdown(false);
+                setHighlightedAccountIndex(0);
+              }}
+              onBlur={() => {
+                setTimeout(() => setShowAccountDropdown(false), 150);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setShowAccountDropdown(true);
+                  setHighlightedAccountIndex((prev) =>
+                    Math.min(prev + 1, filteredAccounts.length - 1)
+                  );
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setShowAccountDropdown(true);
+                  setHighlightedAccountIndex((prev) => Math.max(prev - 1, 0));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  const items = filteredAccounts;
+                  if (items.length > 0 && highlightedAccountIndex < items.length) {
+                    const acc = items[highlightedAccountIndex];
+                    setAccountId(acc.id);
+                    setAccountQuery(acc.name);
+                    setShowAccountDropdown(false);
+                  }
+                } else if (e.key === "Escape") {
+                  setShowAccountDropdown(false);
+                }
+              }}
+              placeholder={t("transactions.account")}
+              className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder:text-gray-500"
+            />
 
             {showAccountDropdown && (
               <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
-                {accounts.map((acc) => (
+                {filteredAccounts.map((acc, index) => (
                   <button
                     key={acc.id}
                     type="button"
-                    onClick={() => {
+                    onMouseDown={(e) => {
+                      e.preventDefault();
                       setAccountId(acc.id);
+                      setAccountQuery(acc.name);
                       setShowAccountDropdown(false);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600"
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300 ${
+                      index === highlightedAccountIndex
+                        ? "bg-gray-100 dark:bg-gray-600"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-600"
+                    }`}
                   >
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
@@ -568,6 +772,11 @@ export function TransactionGrid({
                     {acc.name}
                   </button>
                 ))}
+                {filteredAccounts.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
+                    {t("transactions.no_accounts")}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -844,6 +1053,9 @@ export function TransactionGrid({
                         {item.recurrenceId && (
                           <Repeat size={12} className="text-gray-400 dark:text-gray-500" />
                         )}
+                        {item.reminderDate && (
+                          <Bell size={12} className="text-amber-400 dark:text-amber-500" />
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span
@@ -963,6 +1175,17 @@ export function TransactionGrid({
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {t("transactions.due_date")}
+            </label>
+            <input
+              type="date"
+              value={editDueDate}
+              onChange={(e) => setEditDueDate(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
               {t("transactions.amount")}
             </label>
             <input
@@ -988,6 +1211,18 @@ export function TransactionGrid({
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+              <Bell size={12} />
+              {t("transactions.reminder_label")}
+            </label>
+            <input
+              type="date"
+              value={editReminderDate}
+              onChange={(e) => setEditReminderDate(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">

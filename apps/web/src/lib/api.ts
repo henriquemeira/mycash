@@ -189,4 +189,11 @@ export const api = {
   getCategories() {
     return request<{ items: Category[] }>("/categories");
   },
+
+  createCategory(data: { name: string; type: string; color?: string; icon?: string }) {
+    return request<{ category: Category }>("/categories", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };

@@ -110,6 +110,7 @@ txRoutes.get("/", async (c) => {
     notes: row.notes,
     reminderDate: row.reminderDate,
     accountName: row.accountName,
+    categoryName: row.categoryName,
     categoryColor: row.categoryColor,
   }));
 
@@ -435,6 +436,7 @@ if (body.notes !== undefined) updateData.notes = body.notes;
   if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
   if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
   if (body.notes !== undefined) updateData.notes = body.notes;
+  if (body.reminderDate !== undefined) updateData.reminderDate = body.reminderDate;
 
   if (tx.recurrenceId && scope === "single") {
     updateData.recurrenceId = null;
