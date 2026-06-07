@@ -43,7 +43,9 @@
   },
   "settings": {
     "dark_mode": "Modo escuro",
-    "light_mode": "Modo claro"
+    "light_mode": "Modo claro",
+    "expand_view": "Expandir tela",
+    "framed_view": "Modo emoldurado"
   },
   "transactions": {
     "title": "Transações",

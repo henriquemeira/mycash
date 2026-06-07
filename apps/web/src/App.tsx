@@ -3,26 +3,38 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { FrameProvider } from "@/contexts/FrameContext";
 import { AuthPage } from "@/pages/AuthPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
 import { BottomNav } from "@/components/BottomNav";
-import { Sun, Moon, Globe } from "lucide-react";
+import { useFrame } from "@/contexts/FrameContext";
+import { Sun, Moon, Globe, Maximize2, Minimize2 } from "lucide-react";
 
 function TopBar() {
   const { theme, toggleTheme } = useTheme();
+  const { framed, toggleFramed } = useFrame();
   const { language, setLanguage } = useLanguage();
   const { logout } = useAuth();
   const { t } = useTranslation();
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-      <button
-        onClick={toggleTheme}
-        className="hidden rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 md:block"
-        aria-label="Toggle theme"
-      >
-        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-      </button>
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={toggleTheme}
+          className="hidden rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 md:block"
+          aria-label="Toggle theme"
+        >
+          {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+        <button
+          onClick={toggleFramed}
+          className="hidden rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 md:block"
+          title={framed ? t("settings.expand_view") : t("settings.framed_view")}
+        >
+          {framed ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
+        </button>
+      </div>
 
       <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
         {t("app.title")}
@@ -87,7 +99,9 @@ export function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <AppContent />
+        <FrameProvider>
+          <AppContent />
+        </FrameProvider>
       </ToastProvider>
     </AuthProvider>
   );

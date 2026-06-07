@@ -13,10 +13,12 @@ import { BalanceRibbon } from "@/components/BalanceRibbon";
 import { TransactionGrid } from "@/components/TransactionGrid";
 import { useToast } from "@/contexts/ToastContext";
 import { useTranslation } from "react-i18next";
+import { useFrame } from "@/contexts/FrameContext";
 
 const EMPTY_SUMMARY: TransactionSummary = { income: 0, expense: 0, balance: 0 };
 
 export function TransactionsPage() {
+  const { framed } = useFrame();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const now = new Date();
@@ -241,36 +243,38 @@ export function TransactionsPage() {
         <MonthSelector month={month} year={year} onChange={handleMonthChange} />
       </div>
 
-      <BalanceRibbon summary={summary} />
+      <div className={framed ? "w-full md:mx-auto md:max-w-6xl md:px-6 lg:px-8" : "w-full"}>
+        <BalanceRibbon summary={summary} />
 
-      {loading ? (
-        <div className="px-4 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
-          {t("app.loading")}
-        </div>
-      ) : (
-        <TransactionGrid
-          items={items}
-          categories={categories}
-          accounts={accounts}
-          onTogglePaid={handleTogglePaid}
-          onCreateTransaction={handleCreate}
-          onDeleteTransaction={handleDelete}
-          onRefresh={fetchData}
-          defaultAccountId={defaultAccountId}
-        />
-      )}
+        {loading ? (
+          <div className="px-4 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
+            {t("app.loading")}
+          </div>
+        ) : (
+          <TransactionGrid
+            items={items}
+            categories={categories}
+            accounts={accounts}
+            onTogglePaid={handleTogglePaid}
+            onCreateTransaction={handleCreate}
+            onDeleteTransaction={handleDelete}
+            onRefresh={fetchData}
+            defaultAccountId={defaultAccountId}
+          />
+        )}
 
-      {hasMore && !loading && (
-        <div className="flex justify-center border-t border-gray-200 py-3 dark:border-gray-700">
-          <button
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
-          >
-            {loadingMore ? t("transactions.loading_more") : t("transactions.load_more")}
-          </button>
-        </div>
-      )}
+        {hasMore && !loading && (
+          <div className="flex justify-center border-t border-gray-200 py-3 dark:border-gray-700">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              {loadingMore ? t("transactions.loading_more") : t("transactions.load_more")}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

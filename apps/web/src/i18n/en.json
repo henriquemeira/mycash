@@ -43,7 +43,9 @@
   },
   "settings": {
     "dark_mode": "Dark mode",
-    "light_mode": "Light mode"
+    "light_mode": "Light mode",
+    "expand_view": "Expand view",
+    "framed_view": "Framed view"
   },
   "transactions": {
     "title": "Transactions",
