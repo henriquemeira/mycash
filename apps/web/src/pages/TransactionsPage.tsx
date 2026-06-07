@@ -11,7 +11,6 @@ import {
 import { MonthSelector } from "@/components/MonthSelector";
 import { BalanceRibbon } from "@/components/BalanceRibbon";
 import { TransactionGrid } from "@/components/TransactionGrid";
-import { RecurrenceModal } from "@/components/RecurrenceModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useTranslation } from "react-i18next";
 
@@ -112,6 +111,7 @@ export function TransactionsPage() {
         installmentNumber: null,
         totalInstallments: null,
         notes: txData.notes || null,
+        reminderDate: txData.reminderDate || null,
         accountName: account?.name,
         categoryName: category?.name,
         categoryColor: category?.color,
@@ -255,6 +255,7 @@ export function TransactionsPage() {
           onTogglePaid={handleTogglePaid}
           onCreateTransaction={handleCreate}
           onDeleteTransaction={handleDelete}
+          onRefresh={fetchData}
           defaultAccountId={defaultAccountId}
         />
       )}

@@ -81,6 +81,7 @@ txRoutes.get("/", async (c) => {
       installmentNumber: transactions.installmentNumber,
       totalInstallments: transactions.totalInstallments,
       notes: transactions.notes,
+      reminderDate: transactions.reminderDate,
       accountName: accounts.name,
       categoryName: categories.name,
       categoryColor: categories.color,
@@ -107,8 +108,8 @@ txRoutes.get("/", async (c) => {
     installmentNumber: row.installmentNumber,
     totalInstallments: row.totalInstallments,
     notes: row.notes,
+    reminderDate: row.reminderDate,
     accountName: row.accountName,
-    categoryName: row.categoryName,
     categoryColor: row.categoryColor,
   }));
 
@@ -151,6 +152,7 @@ txRoutes.post("/", async (c) => {
     accountId: string;
     categoryId: string;
     notes?: string;
+    reminderDate?: string;
     recurrence?: {
       type: "installment" | "recurring";
       totalInstallments: number;
@@ -195,6 +197,7 @@ txRoutes.post("/", async (c) => {
         installmentNumber: i,
         totalInstallments,
         notes: body.notes || null,
+          reminderDate: body.reminderDate || null,
         createdAt: now,
         updatedAt: now,
       });
@@ -216,6 +219,7 @@ txRoutes.post("/", async (c) => {
           installmentNumber: 1,
           totalInstallments,
           notes: body.notes || null,
+          reminderDate: body.reminderDate || null,
           accountName: "",
           categoryName: "",
           categoryColor: "",
@@ -247,6 +251,7 @@ txRoutes.post("/", async (c) => {
         installmentNumber: i,
         totalInstallments,
         notes: body.notes || null,
+          reminderDate: body.reminderDate || null,
         createdAt: now,
         updatedAt: now,
       });
@@ -268,6 +273,7 @@ txRoutes.post("/", async (c) => {
           installmentNumber: 1,
           totalInstallments,
           notes: body.notes || null,
+          reminderDate: body.reminderDate || null,
           accountName: "",
           categoryName: "",
           categoryColor: "",
@@ -291,6 +297,7 @@ txRoutes.post("/", async (c) => {
     type: body.type as "income" | "expense" | "transfer",
     isPaid: false,
     notes: body.notes || null,
+          reminderDate: body.reminderDate || null,
     createdAt: now,
     updatedAt: now,
   });
@@ -311,6 +318,7 @@ txRoutes.post("/", async (c) => {
         installmentNumber: null,
         totalInstallments: null,
         notes: body.notes || null,
+          reminderDate: body.reminderDate || null,
         accountName: "",
         categoryName: "",
         categoryColor: "",
@@ -339,6 +347,7 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
     accountId?: string;
     categoryId?: string;
     notes?: string;
+    reminderDate?: string | null;
     isPaid?: boolean;
     scope?: "single" | "future";
   }>();
@@ -394,7 +403,9 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
     if (body.type !== undefined) updateData.type = body.type;
     if (body.date !== undefined) updateData.date = body.date;
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate;
-    if (body.notes !== undefined) updateData.notes = body.notes;
+if (body.notes !== undefined) updateData.notes = body.notes;
+  if (body.reminderDate !== undefined) updateData.reminderDate = body.reminderDate;
+    if (body.reminderDate !== undefined) updateData.reminderDate = body.reminderDate;
     if (decodedAccountId) updateData.accountId = decodedAccountId;
     if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
     if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;

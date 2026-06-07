@@ -29,6 +29,13 @@
       "when": 1780865049073,
       "tag": "0003_clever_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1780866663076,
+      "tag": "0004_acoustic_beast",
+      "breakpoints": true
     }
   ]
 }

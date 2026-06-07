@@ -55,6 +55,7 @@ export interface Transaction {
   installmentNumber: number | null;
   totalInstallments: number | null;
   notes: string | null;
+  reminderDate: string | null;
   accountName?: string;
   categoryName?: string;
   categoryColor?: string;
@@ -104,6 +105,7 @@ export interface CreateTransactionData {
   accountId: string;
   categoryId: string;
   notes?: string;
+  reminderDate?: string;
   recurrence?: {
     type: RecurrenceType;
     totalInstallments: number;
@@ -119,6 +121,7 @@ export interface UpdateTransactionData {
   accountId?: string;
   categoryId?: string;
   notes?: string;
+  reminderDate?: string | null;
   isPaid?: boolean;
   scope?: "single" | "future";
 }

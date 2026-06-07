@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useState, useCallback, useMemo, type FormEvent, Fragment } from "react";
+import { useState, useCallback, useMemo, useRef, type FormEvent, Fragment } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,8 +7,9 @@ import {
   type ColumnDef,
   type Row,
 } from "@tanstack/react-table";
-import { Plus, ChevronDown, ChevronUp, Trash2, X, Repeat, CalendarRange } from "lucide-react";
-import type { Transaction, Category, Account, TransactionType, RecurrenceType, CreateTransactionData } from "@/lib/api";
+import { Plus, ChevronDown, ChevronUp, Trash2, Pencil, X, Repeat, CalendarRange, Bell } from "lucide-react";
+import type { Transaction, Category, Account, TransactionType, RecurrenceType, CreateTransactionData, UpdateTransactionData } from "@/lib/api";
+import { api } from "@/lib/api";
 import { PaidToggle } from "./PaidToggle";
 import { Modal } from "./Modal";
 import { RecurrenceModal } from "./RecurrenceModal";
@@ -18,6 +19,18 @@ function formatCurrency(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(Math.abs(value) / 100);
+}
+
+function parseCurrencyInput(value: string): number {
+  const digits = value.replace(/[^\d]/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+function formatCurrencyInput(cents: number): string {
+  if (cents === 0) return "";
+  const reais = Math.floor(cents / 100);
+  const centavos = cents % 100;
+  return `R$ ${reais.toLocaleString("pt-BR")},${String(centavos).padStart(2, "0")}`;
 }
 
 function formatFullDate(dateStr: string, locale: string): string {
@@ -66,6 +79,7 @@ interface TransactionGridProps {
   onTogglePaid: (id: string) => void;
   onCreateTransaction: (data: CreateTransactionData) => Promise<void>;
   onDeleteTransaction: (id: string, scope: "single" | "future") => Promise<void>;
+  onRefresh: () => void;
   defaultAccountId?: string;
 }
 
@@ -76,11 +90,14 @@ export function TransactionGrid({
   onTogglePaid,
   onCreateTransaction,
   onDeleteTransaction,
+  onRefresh,
   defaultAccountId,
 }: TransactionGridProps) {
   const { t, i18n } = useTranslation();
+  const descRef = useRef<HTMLInputElement>(null);
   const [desc, setDesc] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amountCents, setAmountCents] = useState(0);
+  const [amountDisplay, setAmountDisplay] = useState("");
   const today = new Date().toISOString().split("T")[0];
   const [dueDate, setDueDate] = useState(today);
   const [type, setType] = useState<TransactionType>("expense");
@@ -91,6 +108,7 @@ export function TransactionGrid({
 
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [notes, setNotes] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType | "none">("none");
   const [installmentCount, setInstallmentCount] = useState(2);
 
@@ -99,13 +117,11 @@ export function TransactionGrid({
     action: "edit" | "delete";
     transactionId: string;
     description: string;
-    scope: "single" | "future" | null;
   }>({
     open: false,
     action: "delete",
     transactionId: "",
     description: "",
-    scope: null,
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -113,6 +129,18 @@ export function TransactionGrid({
     transactionId: string;
     description: string;
   }>({ open: false, transactionId: "", description: "" });
+
+  const [editModal, setEditModal] = useState<{
+    open: boolean;
+    transaction: Transaction | null;
+  }>({ open: false, transaction: null });
+
+  const [editDesc, setEditDesc] = useState("");
+  const [editAmountCents, setEditAmountCents] = useState(0);
+  const [editAmountDisplay, setEditAmountDisplay] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editAccountId, setEditAccountId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   const filteredCategories = categories.filter((cat) => {
     if (type === "transfer") return true;
@@ -122,6 +150,61 @@ export function TransactionGrid({
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const selectedAccount = accounts.find((a) => a.id === accountId);
 
+  const handleAmountChange = useCallback((raw: string) => {
+    const cents = parseCurrencyInput(raw);
+    setAmountCents(cents);
+    setAmountDisplay(formatCurrencyInput(cents));
+  }, []);
+
+  const handleEditAmountChange = useCallback((raw: string) => {
+    const cents = parseCurrencyInput(raw);
+    setEditAmountCents(cents);
+    setEditAmountDisplay(formatCurrencyInput(cents));
+  }, []);
+
+  const openEditModal = useCallback(
+    (tx: Transaction) => {
+      if (tx.recurrenceId) {
+        setRecurrenceModal({
+          open: true,
+          action: "edit",
+          transactionId: tx.id,
+          description: tx.description,
+        });
+        return;
+      }
+      setEditDesc(tx.description);
+      setEditAmountCents(Math.abs(tx.amount));
+      setEditAmountDisplay(formatCurrencyInput(Math.abs(tx.amount)));
+      setEditCategoryId(tx.categoryId);
+      setEditAccountId(tx.accountId);
+      setEditNotes(tx.notes || "");
+      setEditModal({ open: true, transaction: tx });
+    },
+    []
+  );
+
+  const handleEditSubmit = useCallback(
+    async (scope: "single" | "future") => {
+      const tx = editModal.transaction;
+      if (!tx) return;
+      setEditModal({ open: false, transaction: null });
+
+      const data: UpdateTransactionData = {
+        description: editDesc.trim() || undefined,
+        amount: editAmountCents || undefined,
+        categoryId: editCategoryId || undefined,
+        accountId: editAccountId || undefined,
+        notes: editNotes || undefined,
+        scope,
+      };
+
+      await api.updateTransaction(tx.id, data);
+      onRefresh();
+    },
+    [editModal, editDesc, editAmountCents, editCategoryId, editAccountId, editNotes, onRefresh]
+  );
+
   const columns = useMemo<ColumnDef<Transaction>[]>(
     () => [
       {
@@ -129,8 +212,6 @@ export function TransactionGrid({
         header: t("transactions.description"),
         cell: ({ getValue, row }) => {
           const desc = getValue() as string;
-          const inst = row.original.installmentNumber;
-          const total = row.original.totalInstallments;
           return (
             <div className="flex flex-col">
               <span className="text-sm text-gray-900 dark:text-gray-100">
@@ -193,15 +274,22 @@ export function TransactionGrid({
       },
       {
         id: "actions",
-        size: 44,
+        size: 60,
         header: "",
         cell: ({ row }) => (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <PaidToggle
               isPaid={row.original.isPaid}
               type={row.original.type}
               onToggle={() => onTogglePaid(row.original.id)}
             />
+            <button
+              onClick={() => openEditModal(row.original)}
+              className="rounded p-1 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
+              title={t("transactions.edit")}
+            >
+              <Pencil size={14} />
+            </button>
             <button
               onClick={() => handleDeleteClick(row.original)}
               className="rounded p-1 text-gray-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
@@ -213,7 +301,7 @@ export function TransactionGrid({
         ),
       },
     ],
-    [t, onTogglePaid]
+    [t, onTogglePaid, openEditModal]
   );
 
   const table = useReactTable({
@@ -264,13 +352,12 @@ export function TransactionGrid({
           action: "delete",
           transactionId: tx.id,
           description: tx.description,
-          scope: null,
         });
       } else {
         setDeleteConfirm({ open: true, transactionId: tx.id, description: tx.description });
       }
     },
-    [onDeleteTransaction]
+    []
   );
 
   const handleDeleteConfirm = useCallback(
@@ -286,19 +373,29 @@ export function TransactionGrid({
     async (scope: "single" | "future") => {
       const modal = recurrenceModal;
       setRecurrenceModal((prev) => ({ ...prev, open: false }));
-      await onDeleteTransaction(modal.transactionId, scope);
+
+      if (modal.action === "delete") {
+        await onDeleteTransaction(modal.transactionId, scope);
+      } else {
+        const tx = items.find((i) => i.id === modal.transactionId);
+        if (!tx) return;
+        setEditDesc(tx.description);
+        setEditAmountCents(Math.abs(tx.amount));
+        setEditAmountDisplay(formatCurrencyInput(Math.abs(tx.amount)));
+        setEditCategoryId(tx.categoryId);
+        setEditAccountId(tx.accountId);
+        setEditNotes(tx.notes || "");
+        setEditModal({ open: true, transaction: { ...tx, _scope: scope } as Transaction & { _scope?: string } });
+      }
     },
-    [recurrenceModal, onDeleteTransaction]
+    [recurrenceModal, onDeleteTransaction, items]
   );
 
   const handleInsert = useCallback(
     (e: FormEvent) => {
       e.preventDefault();
-      const parsedAmount = parseFloat(amount.replace(",", "."));
-      if (!desc.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
+      if (!desc.trim() || amountCents <= 0) return;
       if (!categoryId || !accountId || !dueDate) return;
-
-      const amountCents = Math.round(parsedAmount * 100);
 
       const data: CreateTransactionData = {
         description: desc.trim(),
@@ -309,6 +406,7 @@ export function TransactionGrid({
         accountId,
         categoryId,
         notes: notes.trim() || undefined,
+        reminderDate: reminderDate || undefined,
       };
 
       if (recurrenceType === "installment") {
@@ -326,17 +424,29 @@ export function TransactionGrid({
       onCreateTransaction(data);
 
       setDesc("");
-      setAmount("");
+      setAmountCents(0);
+      setAmountDisplay("");
       setCategoryId("");
       setNotes("");
+      setReminderDate("");
       setRecurrenceType("none");
       setInstallmentCount(2);
       setShowMoreOptions(false);
+      descRef.current?.focus();
     },
-    [desc, amount, dueDate, type, categoryId, accountId, today, onCreateTransaction, notes, recurrenceType, installmentCount]
+    [desc, amountCents, dueDate, type, categoryId, accountId, today, onCreateTransaction, notes, reminderDate, recurrenceType, installmentCount]
   );
 
   const colCount = columns.length;
+  const editFilteredCategories = editModal.transaction
+    ? categories.filter((cat) => {
+        if (editModal.transaction!.type === "transfer") return true;
+        return cat.type === editModal.transaction!.type;
+      })
+    : [];
+
+  const editTx = editModal.transaction;
+  const editScope = (editTx as Transaction & { _scope?: string })?._scope as "single" | "future" | undefined;
 
   return (
     <div className="flex flex-col">
@@ -367,6 +477,7 @@ export function TransactionGrid({
           </div>
 
           <input
+            ref={descRef}
             type="text"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
@@ -472,10 +583,10 @@ export function TransactionGrid({
 
           <input
             type="text"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            value={amountDisplay}
+            onChange={(e) => handleAmountChange(e.target.value)}
             placeholder={t("transactions.new_amount_placeholder")}
-            className="w-24 border-none bg-transparent text-right text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+            className="w-28 border-none bg-transparent text-right text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
             inputMode="decimal"
           />
 
@@ -498,6 +609,19 @@ export function TransactionGrid({
 
         {showMoreOptions && (
           <div className="space-y-3 border-t border-gray-200 px-4 py-3 dark:border-gray-600">
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                <Bell size={12} />
+                {t("transactions.reminder_label")}
+              </label>
+              <input
+                type="date"
+                value={reminderDate}
+                onChange={(e) => setReminderDate(e.target.value)}
+                className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              />
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                 {t("transactions.notes_label")}
@@ -577,6 +701,13 @@ export function TransactionGrid({
                 </div>
                 <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
                   {t("transactions.installment_hint", { count: installmentCount })}
+                  {amountCents > 0 && (
+                    <span className="ml-1 text-gray-500 dark:text-gray-400">
+                      {t("transactions.installment_value_hint", {
+                        value: formatCurrency(amountCents),
+                      })}
+                    </span>
+                  )}
                 </p>
               </div>
             )}
@@ -592,6 +723,7 @@ export function TransactionGrid({
               onClick={() => {
                 setShowMoreOptions(false);
                 setNotes("");
+                setReminderDate("");
                 setRecurrenceType("none");
                 setInstallmentCount(2);
               }}
@@ -738,12 +870,18 @@ export function TransactionGrid({
                       {formatCurrency(item.amount)}
                     </span>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5">
                       <PaidToggle
                         isPaid={item.isPaid}
                         type={item.type}
                         onToggle={() => onTogglePaid(item.id)}
                       />
+                      <button
+                        onClick={() => openEditModal(item)}
+                        className="rounded p-1 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/30 dark:hover:text-blue-400"
+                      >
+                        <Pencil size={14} />
+                      </button>
                       <button
                         onClick={() => handleDeleteClick(item)}
                         className="rounded p-1 text-gray-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-900/30 dark:hover:text-rose-400"
@@ -803,6 +941,79 @@ export function TransactionGrid({
           >
             {t("transactions.delete_confirm_ok")}
           </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={editModal.open}
+        onClose={() => setEditModal({ open: false, transaction: null })}
+        title={t("transactions.edit_title")}
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {t("transactions.description")}
+            </label>
+            <input
+              type="text"
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {t("transactions.amount")}
+            </label>
+            <input
+              type="text"
+              value={editAmountDisplay}
+              onChange={(e) => handleEditAmountChange(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+              inputMode="decimal"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {t("transactions.category")}
+            </label>
+            <select
+              value={editCategoryId}
+              onChange={(e) => setEditCategoryId(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            >
+              {editFilteredCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {t("transactions.notes_label")}
+            </label>
+            <input
+              type="text"
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => setEditModal({ open: false, transaction: null })}
+              className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-300 transition-colors hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-600"
+            >
+              {t("transactions.edit_cancel")}
+            </button>
+            <button
+              onClick={() => handleEditSubmit(editScope || "single")}
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+            >
+              {t("transactions.edit_save")}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

@@ -87,6 +87,7 @@ export const transactions = sqliteTable(
     installmentNumber: integer("installment_number"),
     totalInstallments: integer("total_installments"),
     notes: text("notes"),
+    reminderDate: text("reminder_date"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .$defaultFn(() => new Date())
       .notNull(),
