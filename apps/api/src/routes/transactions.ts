@@ -9,9 +9,11 @@ import {
 import { newId } from "../utils/id";
 import { encodeId, decodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
-import { hashidMiddleware } from "../middleware/hashid";
+import { hashidMiddleware, type HashidVariables } from "../middleware/hashid";
 
-const txRoutes = new Hono<AuthEnv>();
+type TxEnv = AuthEnv & { Variables: HashidVariables };
+
+const txRoutes = new Hono<TxEnv>();
 
 txRoutes.use("*", authMiddleware);
 
@@ -187,7 +189,7 @@ txRoutes.post("/", async (c) => {
 
 txRoutes.patch("/:id/toggle-paid", hashidMiddleware, async (c) => {
   const userId = c.get("userId");
-  const decodedId = c.req.raw.headers.get("x-decoded-id");
+  const decodedId = c.get("decodedId");
 
   if (!decodedId) {
     return c.json({ error: "errors.invalid_id" }, 400);

@@ -175,7 +175,7 @@ export function TransactionGrid({
       map.set(row.original.id, row);
     }
     return map;
-  }, [table]);
+  }, [items]);
 
   const groupedItems = useMemo(() => {
     const groups: { date: string; items: Transaction[]; balance: number }[] = [];

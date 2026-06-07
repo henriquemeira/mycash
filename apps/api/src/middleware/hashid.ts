@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import { encodeId, decodeId } from "../utils/hashid";
+import type { Env } from "../env";
 
 const ID_FIELDS = new Set(["id"]);
 const ID_SUFFIXES = ["_id", "Id"];
@@ -8,7 +9,14 @@ function isIdField(key: string): boolean {
   return ID_FIELDS.has(key) || ID_SUFFIXES.some((s) => key.endsWith(s));
 }
 
-export const hashidMiddleware = createMiddleware(async (c, next) => {
+export type HashidVariables = {
+  decodedId: string;
+};
+
+export const hashidMiddleware = createMiddleware<{
+  Bindings: Env;
+  Variables: HashidVariables;
+}>(async (c, next) => {
   const salt = c.env.HASHIDS_SALT;
 
   const idParam = c.req.param("id");
@@ -17,7 +25,7 @@ export const hashidMiddleware = createMiddleware(async (c, next) => {
     if (decoded === null) {
       return c.json({ error: "errors.invalid_id" }, 400);
     }
-    c.req.raw.headers.set("x-decoded-id", decoded);
+    c.set("decodedId", decoded);
   }
 
   await next();
