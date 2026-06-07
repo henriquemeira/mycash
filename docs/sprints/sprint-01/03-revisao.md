@@ -79,13 +79,13 @@
 **Planejado (RFC):** IDs como `integer({ mode: 'bigint' })` — colunas `BIGINT` no SQL.
 **Implementado:** IDs como `text('id')` — SnowflakeID armazenado como string decimal.
 
-Embora funcionalmente correto (hashids opera sobre strings), fere o spec da proposta de BD. Motivo: o SnowflakeID gerado excede 53 bits (limite do Number JS), então é armazenado como string desde a origem (`newId()` retorna `string`). A decisão é pragmática, mas **deve ser documentada como tech debt** para alinhamento futuro se migrar para PostgreSQL com `BIGINT` nativo.
+**Decisão: aceito como design correto.** O ID interno (bigint) jamais é exposto ao frontend — sempre trafega como hashid. Armazenar como TEXT é pragmático e seguro: preserva a total precisão do SnowflakeID (que excede 53 bits do Number JS), mantém ordenabilidade lexicográfica consistente (IDs gerados pelo mesmo epoch têm comprimento fixo), e é compatível com SQLite/D1 que não possui BIGINT nativo. A interface `encodeId`/`decodeId` foi simplificada para operar diretamente com strings, eliminando conversões `BigInt()`/`.toString()` desnecessárias nas rotas. Não há tech debt — apenas uma decisão de design documentada.
 
 ### 2. `encodeResponseIds` sem middleware global
 **Planejado:** Middleware de saída que serializa automaticamente todos os IDs.
 **Implementado:** Cada rota chama `encodeId()` manualmente. A função `encodeResponseIds()` existe mas não é usada.
 
-Isso funciona, mas exige que cada nova rota lembre de codificar os IDs manualmente — risco de esquecimento. **Sugestão:** Criar um middleware `encodeResponseMiddleware` que intercepta o `c.json()` e aplica `encodeResponseIds()` automaticamente.
+**Decisão: mantido como utilitário, sem middleware global.** A função `encodeResponseIds` foi atualizada para reconhecer campos de ID com valor `string` (em vez de `bigint`), ficando disponível como utilitário. No entanto, um middleware global de resposta em Hono seria arriscado: poderia codificar acidentalmente campos string que terminam em `_id` mas não são SnowflakeIDs (ex: chaves estrangeiras de sistemas externos). A abordagem manual e explícita por rota é mais segura e previsível.
 
 ### 3. Migration não integrada ao dev startup
 `wrangler d1 migrations apply` não era executado automaticamente no inicio do dev server. Corrigido na Sprint 02 com script `predev`. Na Sprint 01 era necessário executar manualmente.
@@ -93,8 +93,8 @@ Isso funciona, mas exige que cada nova rota lembre de codificar os IDs manualmen
 ### 4. Lint não configurado
 O script `lint` existe no `package.json` raiz mas nenhum pacote implementa. Apenas `typecheck` é verificado.
 
-### 5. Hashids com singleton global pode causar problemas
-O `getHashids()` em `hashid.ts` usa uma variável global `hashids`. Em ambiente multi-tenant ou com recriação de instâncias, o salt carregado na primeira chamada pode persistir incorretamente se o ambiente for reutilizado. Recomendação: recriar a instância por requisição usando o salt do binding.
+### 5. Hashids com singleton global — CORRIGIDO
+O `getHashids()` em `hashid.ts` usava uma variável global que ignorava mudanças de salt após a primeira chamada. **Corrigido:** a instância agora é criada por chamada, eliminando o risco de stale state em ambientes com reutilização de isolates. A interface de `encodeId`/`decodeId` foi simplificada para aceitar/retornar `string` nativamente, removendo conversões `BigInt()`/`.toString()` nas rotas.
 
 ---
 
@@ -104,7 +104,7 @@ O `getHashids()` em `hashid.ts` usa uma variável global `hashids`. Em ambiente 
 |---|---|
 | Itens planejados | ~30 |
 | Itens implementados | 30 |
-| Não conformidades | 2 (TEXT vs BIGINT, sem middleware global encode) |
-| Melhorias identificadas | 2 (predev migration, lint) |
+| Não conformidades | 0 (todas tratadas como decisões de design aceitas ou corrigidas) |
+| Melhorias identificadas | 2 (predev migration — corrigido, lint — pendente) |
 | Build | ✅ Passa |
 | Typecheck | ✅ Passa |

@@ -111,7 +111,7 @@ auth.post("/register", async (c) => {
   return c.json(
     {
       user: {
-        id: encodeId(BigInt(userId), salt),
+        id: encodeId(userId, salt),
         email: normalizedEmail,
       },
     },
@@ -171,7 +171,7 @@ auth.post("/login", async (c) => {
 
   return c.json({
     user: {
-      id: encodeId(BigInt(user.id), salt),
+      id: encodeId(user.id, salt),
       email: user.email,
     },
   });
@@ -200,7 +200,7 @@ auth.get("/me", authMiddleware, async (c) => {
 
   return c.json({
     user: {
-      id: encodeId(BigInt(user.id), salt),
+      id: encodeId(user.id, salt),
       email: user.email,
       status: user.status,
     },

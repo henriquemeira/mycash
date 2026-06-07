@@ -20,7 +20,7 @@ categoryRoutes.get("/", async (c) => {
     .where(and(eq(categories.userId, userId), isNull(categories.deletedAt)));
 
   const items = rows.map((row) => ({
-    id: encodeId(BigInt(row.id), salt),
+    id: encodeId(row.id, salt),
     name: row.name,
     type: row.type,
     color: row.color,

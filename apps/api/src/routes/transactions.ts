@@ -66,15 +66,15 @@ txRoutes.get("/", async (c) => {
 
     const salt = c.env.HASHIDS_SALT;
     return {
-      id: encodeId(BigInt(row.id), salt),
+      id: encodeId(row.id, salt),
       description: row.description,
       amount: row.amount,
       date: row.date,
       dueDate: row.dueDate,
       type: row.type,
       isPaid: row.isPaid,
-      accountId: encodeId(BigInt(row.accountId), salt),
-      categoryId: encodeId(BigInt(row.categoryId), salt),
+      accountId: encodeId(row.accountId, salt),
+      categoryId: encodeId(row.categoryId, salt),
       accountName: row.accountName,
       categoryName: row.categoryName,
       categoryColor: row.categoryColor,
@@ -125,8 +125,8 @@ txRoutes.post("/", async (c) => {
   await db.insert(transactions).values({
     id,
     userId,
-    accountId: decodedAccountId.toString(),
-    categoryId: decodedCategoryId.toString(),
+    accountId: decodedAccountId,
+    categoryId: decodedCategoryId,
     description: body.description,
     amount,
     date: body.date || now.toISOString().split("T")[0],
@@ -140,7 +140,7 @@ txRoutes.post("/", async (c) => {
   return c.json(
     {
       transaction: {
-        id: encodeId(BigInt(id), salt),
+        id: encodeId(id, salt),
         description: body.description,
         amount,
         date: body.date || now.toISOString().split("T")[0],

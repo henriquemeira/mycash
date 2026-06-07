@@ -1,6 +1,13 @@
 import { createMiddleware } from "hono/factory";
 import { encodeId, decodeId } from "../utils/hashid";
 
+const ID_FIELDS = new Set(["id"]);
+const ID_SUFFIXES = ["_id", "Id"];
+
+function isIdField(key: string): boolean {
+  return ID_FIELDS.has(key) || ID_SUFFIXES.some((s) => key.endsWith(s));
+}
+
 export const hashidMiddleware = createMiddleware(async (c, next) => {
   const salt = c.env.HASHIDS_SALT;
 
@@ -10,7 +17,7 @@ export const hashidMiddleware = createMiddleware(async (c, next) => {
     if (decoded === null) {
       return c.json({ error: "errors.invalid_id" }, 400);
     }
-    c.req.raw.headers.set("x-decoded-id", decoded.toString());
+    c.req.raw.headers.set("x-decoded-id", decoded);
   }
 
   await next();
@@ -26,10 +33,7 @@ export function encodeResponseIds(data: unknown, salt: string): unknown {
   if (typeof data === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-      if (
-        (key === "id" || key.endsWith("_id") || key.endsWith("Id")) &&
-        typeof value === "bigint"
-      ) {
+      if (isIdField(key) && typeof value === "string") {
         result[key] = encodeId(value, salt);
       } else {
         result[key] = encodeResponseIds(value, salt);

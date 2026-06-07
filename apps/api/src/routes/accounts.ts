@@ -20,7 +20,7 @@ accountRoutes.get("/", async (c) => {
     .where(and(eq(accounts.userId, userId), isNull(accounts.deletedAt)));
 
   const items = rows.map((row) => ({
-    id: encodeId(BigInt(row.id), salt),
+    id: encodeId(row.id, salt),
     name: row.name,
     type: row.type,
     color: row.color,

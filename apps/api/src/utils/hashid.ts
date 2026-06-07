@@ -1,20 +1,15 @@
 import Hashids from "hashids";
 
-let hashids: Hashids | null = null;
-
 function getHashids(salt: string): Hashids {
-  if (!hashids) {
-    hashids = new Hashids(salt, 8);
-  }
-  return hashids;
+  return new Hashids(salt, 8);
 }
 
-export function encodeId(id: bigint, salt: string): string {
-  return getHashids(salt).encode(BigInt(id).toString());
+export function encodeId(id: string, salt: string): string {
+  return getHashids(salt).encode(BigInt(id));
 }
 
-export function decodeId(hash: string, salt: string): bigint | null {
+export function decodeId(hash: string, salt: string): string | null {
   const decoded = getHashids(salt).decode(hash);
   if (decoded.length === 0) return null;
-  return BigInt(decoded[0]);
+  return BigInt(decoded[0]).toString();
 }
