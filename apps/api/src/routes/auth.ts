@@ -1,0 +1,210 @@
+import { Hono } from "hono";
+import { setCookie, deleteCookie } from "hono/cookie";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { users, accounts, categories } from "@minhas-financas/database/schema";
+import { hashPassword, verifyPassword } from "../utils/crypto";
+import { signJwt } from "../utils/jwt";
+import { newId } from "../utils/id";
+import { encodeId } from "../utils/hashid";
+import { authMiddleware, type AuthEnv } from "../middleware/auth";
+
+const auth = new Hono<AuthEnv>();
+
+auth.post("/register", async (c) => {
+  const { email, password } = await c.req.json<{
+    email: string;
+    password: string;
+  }>();
+
+  if (!email || !password) {
+    return c.json({ error: "E-mail e senha são obrigatórios" }, 400);
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return c.json({ error: "E-mail inválido" }, 400);
+  }
+
+  if (password.length < 8) {
+    return c.json({ error: "A senha deve ter no mínimo 8 caracteres" }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const existing = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, normalizedEmail))
+    .get();
+
+  if (existing) {
+    return c.json({ error: "E-mail já cadastrado" }, 409);
+  }
+
+  const passwordHash = await hashPassword(password);
+  const userId = newId();
+  const now = new Date();
+
+  const accountId = newId();
+  const incomeCategoryId = newId();
+  const expenseCategoryId = newId();
+
+  await db.batch([
+    db.insert(users).values({
+      id: userId,
+      email: normalizedEmail,
+      passwordHash,
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    }),
+    db.insert(accounts).values({
+      id: accountId,
+      userId,
+      name: "CAIXA",
+      type: "cash",
+      color: "#3b82f6",
+      initialBalance: 0,
+      currency: "BRL",
+      createdAt: now,
+      updatedAt: now,
+    }),
+    db.insert(categories).values({
+      id: incomeCategoryId,
+      userId,
+      name: "RECEITAS",
+      type: "income",
+      color: "#22c55e",
+      icon: "trending-up",
+      createdAt: now,
+      updatedAt: now,
+    }),
+    db.insert(categories).values({
+      id: expenseCategoryId,
+      userId,
+      name: "DESPESAS",
+      type: "expense",
+      color: "#ef4444",
+      icon: "trending-down",
+      createdAt: now,
+      updatedAt: now,
+    }),
+  ]);
+
+  const token = await signJwt(
+    { sub: userId, email: normalizedEmail },
+    c.env.JWT_SECRET
+  );
+
+  setCookie(c, "token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
+
+  const salt = c.env.HASHIDS_SALT;
+
+  return c.json(
+    {
+      user: {
+        id: encodeId(BigInt(userId), salt),
+        email: normalizedEmail,
+      },
+    },
+    201
+  );
+});
+
+auth.post("/login", async (c) => {
+  const { email, password } = await c.req.json<{
+    email: string;
+    password: string;
+  }>();
+
+  if (!email || !password) {
+    return c.json({ error: "E-mail e senha são obrigatórios" }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, normalizedEmail))
+    .get();
+
+  if (!user || user.deletedAt !== null) {
+    return c.json({ error: "Credenciais inválidas" }, 401);
+  }
+
+  const valid = await verifyPassword(password, user.passwordHash);
+
+  if (!valid) {
+    return c.json({ error: "Credenciais inválidas" }, 401);
+  }
+
+  const now = new Date();
+  await db
+    .update(users)
+    .set({ lastLoginAt: now, updatedAt: now })
+    .where(eq(users.id, user.id));
+
+  const token = await signJwt(
+    { sub: user.id, email: user.email },
+    c.env.JWT_SECRET
+  );
+
+  setCookie(c, "token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
+
+  const salt = c.env.HASHIDS_SALT;
+
+  return c.json({
+    user: {
+      id: encodeId(BigInt(user.id), salt),
+      email: user.email,
+    },
+  });
+});
+
+auth.post("/logout", (c) => {
+  deleteCookie(c, "token", { path: "/" });
+  return c.json({ message: "Logout realizado com sucesso" });
+});
+
+auth.get("/me", authMiddleware, async (c) => {
+  const userId = c.get("userId");
+  const db = drizzle(c.env.DB);
+
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+
+  if (!user || user.deletedAt !== null) {
+    return c.json({ error: "Usuário não encontrado" }, 404);
+  }
+
+  const salt = c.env.HASHIDS_SALT;
+
+  return c.json({
+    user: {
+      id: encodeId(BigInt(user.id), salt),
+      email: user.email,
+      status: user.status,
+    },
+  });
+});
+
+export default auth;
