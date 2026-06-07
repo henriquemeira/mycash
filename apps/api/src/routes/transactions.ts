@@ -198,7 +198,7 @@ txRoutes.post("/", async (c) => {
         installmentNumber: i,
         totalInstallments,
         notes: body.notes || null,
-          reminderDate: body.reminderDate || null,
+        reminderDate: body.reminderDate ? addMonths(body.reminderDate, i - 1) : null,
         createdAt: now,
         updatedAt: now,
       });
@@ -252,7 +252,7 @@ txRoutes.post("/", async (c) => {
         installmentNumber: i,
         totalInstallments,
         notes: body.notes || null,
-          reminderDate: body.reminderDate || null,
+        reminderDate: body.reminderDate ? addMonths(body.reminderDate, i - 1) : null,
         createdAt: now,
         updatedAt: now,
       });
