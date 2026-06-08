@@ -161,7 +161,7 @@
     "upload_file": "Upload file",
     "uploading": "Uploading...",
     "attachments": "Attachments",
-    "cli_placeholder": "/- 15.50 Coffee @food #today",
+    "cli_placeholder": "Description... or /- 15.50 Coffee @food #today",
     "cli_no_description": "No description",
     "cli_map_to": "Map to:",
     "cli_default_description": "Quick transaction",

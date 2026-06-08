@@ -46,6 +46,11 @@ function formatFullDate(dateStr: string, locale: string): string {
   return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}, ${weekday}`;
 }
 
+function isCliMode(text: string): boolean {
+  const trimmed = text.trimStart();
+  return trimmed.startsWith("/-") || trimmed.startsWith("/+");
+}
+
 const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
   { value: "income", label: "+" },
   { value: "expense", label: "-" },
@@ -136,21 +141,20 @@ export function TransactionGrid({
   const [highlightedCategoryIndex, setHighlightedCategoryIndex] = useState(0);
   const [accountQuery, setAccountQuery] = useState("");
   const [highlightedAccountIndex, setHighlightedAccountIndex] = useState(0);
-
-  const [cliInput, setCliInput] = useState("");
   const [cliFocused, setCliFocused] = useState(false);
-  const cliRef = useRef<HTMLInputElement>(null);
 
   const selectedMonth = `${year}-${String(month).padStart(2, "0")}`;
 
+  const cliActive = isCliMode(desc);
   const cliPreview = useMemo(() => {
-    return parseCliInput(cliInput, selectedMonth);
-  }, [cliInput, selectedMonth]);
+    if (!cliActive) return null;
+    return parseCliInput(desc, selectedMonth);
+  }, [desc, selectedMonth, cliActive]);
 
   const cliMatchedCategory = useMemo(() => {
-    if (!cliPreview.category) return null;
+    if (!cliPreview?.category) return null;
     return fuzzyMatchCategory(cliPreview.category, categories);
-  }, [cliPreview.category, categories]);
+  }, [cliPreview?.category, categories]);
 
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [notes, setNotes] = useState("");
@@ -508,62 +512,144 @@ export function TransactionGrid({
     [recurrenceModal, onDeleteTransaction, items]
   );
 
+  const resetTraditionalForm = useCallback(() => {
+    setDesc("");
+    setAmountCents(0);
+    setAmountDisplay("");
+    setDueDate(today);
+    setCategoryId("");
+    setCategoryQuery("");
+    setAccountId(defaultAccountId || "");
+    setAccountQuery(selectedAccount?.name || "");
+    setNotes("");
+    setReminderDate("");
+    setRecurrenceType("none");
+    setInstallmentCount(2);
+    setShowMoreOptions(false);
+    setType("expense");
+    descRef.current?.focus();
+  }, [today, defaultAccountId, selectedAccount?.name]);
+
+  const resetCliForm = useCallback(() => {
+    setDesc("");
+    setNotes("");
+    setReminderDate("");
+    setRecurrenceType("none");
+    setInstallmentCount(2);
+    setShowMoreOptions(false);
+    descRef.current?.focus();
+  }, []);
+
   const handleInsert = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
 
-      if (!cliInput.trim()) return;
+      if (cliActive) {
+        if (!desc.trim()) return;
 
-      const parsed = parseCliInput(cliInput, selectedMonth);
-      if (!parsed.amount || parsed.amount <= 0) return;
+        const parsed = parseCliInput(desc, selectedMonth);
+        if (!parsed.amount || parsed.amount <= 0) return;
 
-      const amountCents = Math.round(parsed.amount * 100);
+        const amountCentsVal = Math.round(parsed.amount * 100);
 
-      const matchedCategory = parsed.category
-        ? fuzzyMatchCategory(parsed.category, categories)
-        : null;
-      if (!matchedCategory) return;
+        const matchedCategory = parsed.category
+          ? fuzzyMatchCategory(parsed.category, categories)
+          : null;
+        if (!matchedCategory) return;
 
-      const finalAccountId = defaultAccountId || "";
-      if (!finalAccountId) return;
+        const finalAccountId = defaultAccountId || "";
+        if (!finalAccountId) return;
 
-      const finalDate = parsed.date || today;
+        const finalDate = parsed.date || today;
 
-      const data: CreateTransactionData = {
-        description: parsed.description || t("transactions.cli_default_description"),
-        amount: amountCents,
-        date: finalDate,
-        dueDate: finalDate,
-        type: parsed.type,
-        accountId: finalAccountId,
-        categoryId: matchedCategory.id,
-        notes: notes.trim() || undefined,
-        reminderDate: reminderDate || undefined,
-      };
-
-      if (recurrenceType === "installment") {
-        data.recurrence = {
-          type: "installment",
-          totalInstallments: installmentCount,
+        const data: CreateTransactionData = {
+          description: parsed.description || t("transactions.cli_default_description"),
+          amount: amountCentsVal,
+          date: finalDate,
+          dueDate: finalDate,
+          type: parsed.type,
+          accountId: finalAccountId,
+          categoryId: matchedCategory.id,
+          notes: notes.trim() || undefined,
+          reminderDate: reminderDate || undefined,
         };
-      } else if (recurrenceType === "recurring") {
-        data.recurrence = {
-          type: "recurring",
-          totalInstallments: 12,
+
+        if (recurrenceType === "installment") {
+          data.recurrence = {
+            type: "installment",
+            totalInstallments: installmentCount,
+          };
+        } else if (recurrenceType === "recurring") {
+          data.recurrence = {
+            type: "recurring",
+            totalInstallments: 12,
+          };
+        }
+
+        await onCreateTransaction(data);
+        resetCliForm();
+      } else {
+        if (!desc.trim() || amountCents <= 0) return;
+        if (!dueDate) return;
+
+        let finalCategoryId = categoryId;
+        if (!finalCategoryId && categoryQuery.trim()) {
+          const exactMatch = categories.find(
+            (c) =>
+              c.name.toLowerCase() === categoryQuery.trim().toLowerCase() &&
+              (type === "transfer" || c.type === type)
+          );
+          if (exactMatch) {
+            finalCategoryId = exactMatch.id;
+          }
+        }
+
+        let finalAccountId = accountId;
+        if (!finalAccountId && accountQuery.trim()) {
+          const exactMatch = accounts.find(
+            (a) => a.name.toLowerCase() === accountQuery.trim().toLowerCase()
+          );
+          if (exactMatch) {
+            finalAccountId = exactMatch.id;
+          }
+        }
+
+        if (!finalCategoryId || !finalAccountId) return;
+
+        const data: CreateTransactionData = {
+          description: desc.trim(),
+          amount: amountCents,
+          date: today,
+          dueDate,
+          type,
+          accountId: finalAccountId,
+          categoryId: finalCategoryId,
+          notes: notes.trim() || undefined,
+          reminderDate: reminderDate || undefined,
         };
+
+        if (recurrenceType === "installment") {
+          data.recurrence = {
+            type: "installment",
+            totalInstallments: installmentCount,
+          };
+        } else if (recurrenceType === "recurring") {
+          data.recurrence = {
+            type: "recurring",
+            totalInstallments: 12,
+          };
+        }
+
+        await onCreateTransaction(data);
+        resetTraditionalForm();
       }
-
-      await onCreateTransaction(data);
-
-      setCliInput("");
-      setNotes("");
-      setReminderDate("");
-      setRecurrenceType("none");
-      setInstallmentCount(2);
-      setShowMoreOptions(false);
-      cliRef.current?.focus();
     },
-    [cliInput, selectedMonth, categories, defaultAccountId, today, onCreateTransaction, notes, reminderDate, recurrenceType, installmentCount, t]
+    [
+      cliActive, desc, selectedMonth, categories, defaultAccountId, today,
+      onCreateTransaction, amountCents, dueDate, type, categoryId, accountId,
+      categoryQuery, accountQuery, accounts, notes, reminderDate,
+      recurrenceType, installmentCount, resetCliForm, resetTraditionalForm, t
+    ]
   );
 
   const colCount = columns.length;
@@ -576,6 +662,10 @@ export function TransactionGrid({
 
   const editTx = editModal.transaction;
   const editScope = (editTx as Transaction & { _scope?: string })?._scope as "single" | "future" | undefined;
+
+  const currentAmountCents = cliActive && cliPreview?.amount
+    ? Math.round(cliPreview.amount * 100)
+    : amountCents;
 
   return (
     <div className="flex flex-col">
@@ -595,7 +685,9 @@ export function TransactionGrid({
                   setCategoryId("");
                 }}
                 className={`px-2 py-1 text-xs font-bold transition-colors ${
-                  type === opt.value
+                  (cliActive
+                    ? cliPreview?.type === opt.value
+                    : type === opt.value)
                     ? typeColorClasses(opt.value)
                     : "bg-white text-gray-400 dark:bg-gray-800 dark:text-gray-500"
                 }`}
@@ -607,28 +699,32 @@ export function TransactionGrid({
 
           <div className="relative min-w-0 flex-1">
             <input
-              ref={cliRef}
+              ref={descRef}
               type="text"
-              value={cliInput}
-              onChange={(e) => setCliInput(e.target.value)}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
               onFocus={() => setCliFocused(true)}
               onBlur={() => setTimeout(() => setCliFocused(false), 200)}
               placeholder={t("transactions.cli_placeholder")}
-              className="w-full border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+              className={`w-full border-none bg-transparent text-sm outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                cliActive
+                  ? "text-gray-900 dark:text-gray-100"
+                  : "text-gray-900 dark:text-gray-100"
+              }`}
             />
 
-            {cliFocused && cliInput.trim().length > 0 && (
+            {cliActive && cliFocused && (
               <div className="absolute left-0 top-full z-50 mt-2 w-full max-w-xl rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
                 <div className="flex flex-wrap gap-4 text-xs">
                   <span
                     className={`flex items-center gap-1 font-semibold ${
-                      cliPreview.type === "expense"
+                      cliPreview?.type === "expense"
                         ? "text-rose-600 dark:text-rose-400"
                         : "text-emerald-600 dark:text-emerald-400"
                     }`}
                   >
-                    {cliPreview.type === "expense" ? "🔴" : "🟢"}{" "}
-                    {cliPreview.type === "expense"
+                    {cliPreview?.type === "expense" ? "🔴" : "🟢"}{" "}
+                    {cliPreview?.type === "expense"
                       ? t("transactions.expense")
                       : t("transactions.income")}
                   </span>
@@ -637,7 +733,7 @@ export function TransactionGrid({
 
                   <span className="font-medium text-slate-700 dark:text-slate-300">
                     💰 R${" "}
-                    {cliPreview.amount
+                    {cliPreview?.amount
                       ? cliPreview.amount.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })
@@ -647,13 +743,13 @@ export function TransactionGrid({
                   <span className="text-slate-400 dark:text-slate-500">|</span>
 
                   <span className="text-slate-600 dark:text-slate-400">
-                    📝 {cliPreview.description || t("transactions.cli_no_description")}
+                    📝 {cliPreview?.description || t("transactions.cli_no_description")}
                   </span>
 
-                  {(cliPreview.category || cliPreview.date) && (
+                  {(cliPreview?.category || cliPreview?.date) && (
                     <>
                       <span className="text-slate-400 dark:text-slate-500">|</span>
-                      {cliPreview.category && (
+                      {cliPreview?.category && (
                         <span
                           className={`rounded px-1.5 py-0.5 font-medium ${
                             cliMatchedCategory
@@ -667,7 +763,7 @@ export function TransactionGrid({
                             : `${t("transactions.cli_map_to")} ${cliPreview.category}?`}
                         </span>
                       )}
-                      {cliPreview.date && (
+                      {cliPreview?.date && (
                         <span className="text-slate-500 dark:text-slate-400">
                           📅{" "}
                           {new Date(cliPreview.date + "T12:00:00").toLocaleDateString(
@@ -682,6 +778,220 @@ export function TransactionGrid({
               </div>
             )}
           </div>
+
+          {!cliActive && (
+            <>
+              <div className="relative">
+                <div className="flex items-center gap-1">
+                  {selectedCategory && (
+                    <span
+                      className="ml-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: selectedCategory.color }}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={categoryQuery}
+                    onChange={(e) => {
+                      setCategoryQuery(e.target.value);
+                      setCategoryId("");
+                      setShowCategoryDropdown(true);
+                      setHighlightedCategoryIndex(0);
+                    }}
+                    onFocus={() => {
+                      setShowCategoryDropdown(true);
+                      setShowAccountDropdown(false);
+                      setHighlightedCategoryIndex(0);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowCategoryDropdown(false), 150);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setShowCategoryDropdown(true);
+                        setHighlightedCategoryIndex((prev) =>
+                          Math.min(prev + 1, filteredCategories.length - 1)
+                        );
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setShowCategoryDropdown(true);
+                        setHighlightedCategoryIndex((prev) => Math.max(prev - 1, 0));
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        const items = filteredCategories;
+                        if (items.length > 0 && highlightedCategoryIndex < items.length) {
+                          const cat = items[highlightedCategoryIndex];
+                          setCategoryId(cat.id);
+                          setCategoryQuery(cat.name);
+                          setShowCategoryDropdown(false);
+                        }
+                      } else if (e.key === "Escape") {
+                        setShowCategoryDropdown(false);
+                      }
+                    }}
+                    placeholder={t("transactions.category")}
+                    className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder:text-gray-500"
+                  />
+                </div>
+
+                {showCategoryDropdown && (
+                  <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
+                    {filteredCategories.map((cat, index) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setCategoryId(cat.id);
+                          setCategoryQuery(cat.name);
+                          setShowCategoryDropdown(false);
+                        }}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300 ${
+                          index === highlightedCategoryIndex
+                            ? "bg-gray-100 dark:bg-gray-600"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        {cat.name}
+                      </button>
+                    ))}
+                    {categoryQuery.trim() !== "" &&
+                      !filteredCategories.some(
+                        (c) => c.name.toLowerCase() === categoryQuery.trim().toLowerCase()
+                      ) && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            if (
+                              window.confirm(
+                                t("transactions.create_category_confirm", {
+                                  name: categoryQuery.trim(),
+                                })
+                              )
+                            ) {
+                              handleCreateCategory(categoryQuery.trim());
+                            }
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                        >
+                          <Plus size={14} />
+                          {t("transactions.create_category", { name: categoryQuery.trim() })}
+                        </button>
+                      )}
+                    {filteredCategories.length === 0 && categoryQuery.trim() === "" && (
+                      <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
+                        {t("transactions.no_categories")}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={accountQuery}
+                  onChange={(e) => {
+                    setAccountQuery(e.target.value);
+                    setAccountId("");
+                    setShowAccountDropdown(true);
+                    setHighlightedAccountIndex(0);
+                  }}
+                  onFocus={() => {
+                    setShowAccountDropdown(true);
+                    setShowCategoryDropdown(false);
+                    setHighlightedAccountIndex(0);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowAccountDropdown(false), 150);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setShowAccountDropdown(true);
+                      setHighlightedAccountIndex((prev) =>
+                        Math.min(prev + 1, filteredAccounts.length - 1)
+                      );
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setShowAccountDropdown(true);
+                      setHighlightedAccountIndex((prev) => Math.max(prev - 1, 0));
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      const items = filteredAccounts;
+                      if (items.length > 0 && highlightedAccountIndex < items.length) {
+                        const acc = items[highlightedAccountIndex];
+                        setAccountId(acc.id);
+                        setAccountQuery(acc.name);
+                        setShowAccountDropdown(false);
+                      }
+                    } else if (e.key === "Escape") {
+                      setShowAccountDropdown(false);
+                    }
+                  }}
+                  placeholder={t("transactions.account")}
+                  className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder:text-gray-500"
+                />
+
+                {showAccountDropdown && (
+                  <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
+                    {filteredAccounts.map((acc, index) => (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setAccountId(acc.id);
+                          setAccountQuery(acc.name);
+                          setShowAccountDropdown(false);
+                        }}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300 ${
+                          index === highlightedAccountIndex
+                            ? "bg-gray-100 dark:bg-gray-600"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: acc.color }}
+                        />
+                        {acc.name}
+                      </button>
+                    ))}
+                    {filteredAccounts.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
+                        {t("transactions.no_accounts")}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                required
+                className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                title={t("transactions.due_date")}
+              />
+
+              <input
+                type="text"
+                value={amountDisplay}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                placeholder={t("transactions.new_amount_placeholder")}
+                className="w-28 border-none bg-transparent text-right text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+                inputMode="decimal"
+              />
+            </>
+          )}
 
           <button
             type="submit"
@@ -794,10 +1104,10 @@ export function TransactionGrid({
                 </div>
                 <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
                   {t("transactions.installment_hint", { count: installmentCount })}
-                  {cliPreview.amount && cliPreview.amount > 0 && (
+                  {currentAmountCents > 0 && (
                     <span className="ml-1 text-gray-500 dark:text-gray-400">
                       {t("transactions.installment_value_hint", {
-                        value: formatCurrency(Math.round(cliPreview.amount * 100)),
+                        value: formatCurrency(currentAmountCents),
                       })}
                     </span>
                   )}
