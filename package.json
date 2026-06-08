@@ -7,7 +7,8 @@
     "lint": "pnpm -r run lint",
     "typecheck": "pnpm -r run typecheck",
     "db:generate": "pnpm --filter @mycash/database run generate",
-    "db:migrate": "pnpm --filter @mycash/database run migrate"
+    "db:migrate": "pnpm --filter @mycash/database run migrate",
+    "test:email": "bash scripts/test-email.sh"
   },
   "engines": {
     "node": ">=20"

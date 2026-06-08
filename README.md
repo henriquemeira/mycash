@@ -19,6 +19,8 @@ Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** co
 - Upload de comprovantes via URLs pré-assinadas (Cloudflare R2 / MinIO)
 - Filtros avançados (busca textual, conta, categoria, tipo)
 - Exportação CSV client-side
+- Motor de e-mail agnóstico (SMTP / SendGrid / Mailersend)
+- Recuperação de senha via e-mail
 
 ## Stack Tecnológica
 
@@ -48,6 +50,7 @@ mycash/
     web/              # Frontend React + Vite
   packages/
     database/         # Schema Drizzle ORM compartilhado
+    email/            # Motor de e-mail agnóstico (Adapter/Factory)
   docs/               # Documentação técnica
 ```
 
@@ -81,6 +84,15 @@ S3_ACCESS_KEY=minioadmin
 S3_SECRET_KEY=minioadmin
 S3_BUCKET=mycash
 S3_REGION=us-east-1
+APP_URL=http://localhost:5173
+EMAIL_DRIVER=smtp
+EMAIL_SMTP_HOST=smtp.mailtrap.io
+EMAIL_SMTP_PORT=2525
+EMAIL_SMTP_USER=username
+EMAIL_SMTP_PASS=password
+EMAIL_SMTP_SECURE=false
+EMAIL_FROM_ADDRESS=noreply@mycash.com
+EMAIL_FROM_NAME="MyCash App"
 ```
 
 ### Configuração do MinIO (desenvolvimento local)
@@ -105,6 +117,50 @@ Para Cloudflare R2, configure as variáveis no painel do Workers:
 - `S3_SECRET_KEY`: Secret Access Key gerado no dashboard R2
 - `S3_BUCKET`: Nome do bucket R2
 - `S3_REGION`: `auto`
+
+### Configuração de E-mail
+
+O sistema possui um motor de e-mail agnóstico com suporte a 3 drivers:
+
+| Driver | Descrição |
+|--------|-----------|
+| `smtp` | Servidor SMTP (Mailtrap, Gmail SMTP, etc.) |
+| `sendgrid` | API REST do SendGrid |
+| `mailersend` | API REST do Mailersend |
+
+A escolha é feita via variável `EMAIL_DRIVER`. Exemplo com Mailtrap (desenvolvimento):
+
+```env
+EMAIL_DRIVER=smtp
+EMAIL_SMTP_HOST=smtp.mailtrap.io
+EMAIL_SMTP_PORT=2525
+EMAIL_SMTP_USER=seu_usuario
+EMAIL_SMTP_PASS=sua_senha
+EMAIL_SMTP_SECURE=false
+```
+
+Para produção com SendGrid:
+
+```env
+EMAIL_DRIVER=sendgrid
+EMAIL_API_KEY=SG.xxxxxxxxxxxxxxxxxxxxxx
+EMAIL_FROM_ADDRESS=noreply@seudominio.com
+EMAIL_FROM_NAME="MyCash App"
+```
+
+> O envio de e-mails é feito de forma assíncrona via `c.executionCtx.waitUntil()` do Cloudflare Workers, garantindo resposta instantânea ao usuário sem travar a requisição.
+
+### Testando o envio de e-mails
+
+Com o servidor rodando, use o botão de envelope (📧) na barra superior do dashboard, ou via CLI:
+
+```bash
+# Com o servidor em modo dev rodando (pnpm dev):
+# Defina EMAIL e PASSWORD de um usuário existente
+EMAIL=seu@email.com PASSWORD=sua-senha pnpm test:email
+```
+
+O endpoint `POST /api/email/test` envia um e-mail síncrono (sem `waitUntil`), exibindo o erro real em caso de falha. O dashboard exibe um toast verde "E-mail de teste enviado!" em caso de sucesso, ou vermelho com a mensagem de erro.
 
 ## Desenvolvimento Local
 
@@ -143,6 +199,19 @@ pnpm db:migrate       # Aplicar migrações no banco
 | `S3_SECRET_KEY` | Secret key do storage | Sim* |
 | `S3_BUCKET` | Nome do bucket S3 | Sim* |
 | `S3_REGION` | Região do storage (R2: `auto`, MinIO: `us-east-1`) | Não |
+| `APP_URL` | URL base da aplicação para links de e-mail (ex: `http://localhost:5173`) | Não |
+| `EMAIL_DRIVER` | Driver de e-mail: `smtp`, `sendgrid` ou `mailersend` | Não |
+| `EMAIL_SMTP_HOST` | Host do servidor SMTP | SMTP* |
+| `EMAIL_SMTP_PORT` | Porta do servidor SMTP (ex: `2525`, `465`, `587`) | SMTP* |
+| `EMAIL_SMTP_USER` | Usuário de autenticação SMTP | SMTP* |
+| `EMAIL_SMTP_PASS` | Senha de autenticação SMTP | SMTP* |
+| `EMAIL_SMTP_SECURE` | TLS implícito (`true` para porta 465, `false` para 2525) | SMTP* |
+| `EMAIL_API_KEY` | Chave de API (SendGrid ou Mailersend) | API* |
+| `EMAIL_FROM_ADDRESS` | Endereço de e-mail do remetente | Sim** |
+| `EMAIL_FROM_NAME` | Nome do remetente exibido nos e-mails | Não |
+
+*\* Obrigatório conforme o driver escolhido em `EMAIL_DRIVER`.*
+*\*\* Obrigatório se `EMAIL_DRIVER` estiver configurado.*
 
 *\* Obrigatórias para funcionalidade de anexos. Sem essas variáveis, o sistema funciona normalmente mas sem upload de comprovantes.*
 
@@ -217,6 +286,8 @@ Campo `deleted_at` em todas as tabelas principais para preservação de históri
 - [Sprint 01 - Proposta BD](docs/sprints/sprint-01/02-proposta-bd.md)
 - [Sprint 04 - Planejamento](docs/sprints/sprint-04/01-planejamento.md)
 - [Sprint 04 - Plano de Ação](docs/sprints/sprint-04/02-plano-de-acao.md)
+- [Sprint 05 - Planejamento](docs/sprints/sprint-05/01-planejamento.md)
+- [Sprint 05 - Revisão](docs/sprints/sprint-05/02-revisao.md)
 
 ## Contribuição
 

@@ -7,4 +7,14 @@ export interface Env {
   S3_SECRET_KEY: string;
   S3_BUCKET: string;
   S3_REGION: string;
+  APP_URL: string;
+  EMAIL_DRIVER: string;
+  EMAIL_SMTP_HOST: string;
+  EMAIL_SMTP_PORT: string;
+  EMAIL_SMTP_USER: string;
+  EMAIL_SMTP_PASS: string;
+  EMAIL_SMTP_SECURE: string;
+  EMAIL_API_KEY: string;
+  EMAIL_FROM_ADDRESS: string;
+  EMAIL_FROM_NAME: string;
 }

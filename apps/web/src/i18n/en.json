@@ -13,13 +13,25 @@
     "email_placeholder": "your@email.com",
     "password_placeholder": "Minimum 8 characters",
     "submitting": "Please wait...",
-    "dashboard_wip": "Dashboard under construction — Sprint 01 completed."
+    "dashboard_wip": "Dashboard under construction — Sprint 01 completed.",
+    "forgot_password": "Forgot my password",
+    "send_reset_link": "Send reset link",
+    "forgot_password_sent": "Email sent!",
+    "forgot_password_sent_detail": "If the email is registered, you will receive a link to reset your password.",
+    "back_to_login": "Back to login",
+    "reset_password": "Reset password",
+    "new_password": "New password",
+    "confirm_password": "Confirm password",
+    "confirm_password_placeholder": "Repeat the new password",
+    "password_reset_success": "Password reset successfully!",
+    "email_sent_if_exists": "If the email is registered, you will receive a recovery link."
   },
   "validation": {
     "email_required": "Email is required",
     "email_invalid": "Invalid email",
     "password_required": "Password is required",
-    "password_min_length": "Password must be at least 8 characters"
+    "password_min_length": "Password must be at least 8 characters",
+    "password_mismatch": "Passwords do not match"
   },
   "errors": {
     "unknown": "Unknown error",
@@ -39,7 +51,14 @@
     "attachment_invalid_type": "File type not allowed.",
     "attachment_blocked_type": "Blocked file type.",
     "attachment_not_found": "Attachment not found.",
-    "s3_access_denied": "Storage access denied. Make sure the R2 token has 'Object Read & Write' permission."
+    "s3_access_denied": "Storage access denied. Make sure the R2 token has 'Object Read & Write' permission.",
+    "reset_token_invalid": "Invalid or expired reset token.",
+    "reset_token_missing": "Reset token not found.",
+    "token_password_required": "Token and new password are required."
+  },
+  "email": {
+    "test_success": "Test email sent successfully! Check your inbox.",
+    "test_failed": "Failed to send test email."
   },
   "nav": {
     "transactions": "Transactions",

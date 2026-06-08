@@ -4,10 +4,11 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { users, accounts, categories } from "@mycash/database/schema";
 import { hashPassword, verifyPassword } from "../utils/crypto";
-import { signJwt } from "../utils/jwt";
+import { signJwt, verifyResetToken, signResetToken } from "../utils/jwt";
 import { newId } from "../utils/id";
 import { encodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
+import { createEmailService, passwordResetEmail } from "@mycash/email";
 
 const auth = new Hono<AuthEnv>();
 
@@ -205,6 +206,86 @@ auth.get("/me", authMiddleware, async (c) => {
       status: user.status,
     },
   });
+});
+
+auth.post("/forgot-password", async (c) => {
+  const { email } = await c.req.json<{ email: string }>();
+
+  if (!email) {
+    return c.json({ error: "errors.email_required" }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, normalizedEmail))
+    .get();
+
+  if (!user || user.deletedAt !== null) {
+    return c.json({ success: true, message: "auth.email_sent_if_exists" });
+  }
+
+  const resetToken = await signResetToken(
+    { sub: user.id, email: user.email },
+    c.env.JWT_SECRET
+  );
+
+  const appUrl = c.env.APP_URL || "http://localhost:5173";
+  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+
+  const emailService = createEmailService(c.env);
+  const template = passwordResetEmail(resetUrl);
+
+  c.executionCtx.waitUntil(
+    emailService.send(user.email, template.subject, template.html, template.text).catch((err) => {
+      console.error(`Failed to send password reset email to ${user.email}:`, err);
+    })
+  );
+
+  return c.json({ success: true, message: "auth.email_sent_if_exists" });
+});
+
+auth.post("/reset-password", async (c) => {
+  const { token, password } = await c.req.json<{ token: string; password: string }>();
+
+  if (!token || !password) {
+    return c.json({ error: "errors.token_password_required" }, 400);
+  }
+
+  if (password.length < 8) {
+    return c.json({ error: "errors.password_too_short" }, 400);
+  }
+
+  const payload = await verifyResetToken(token, c.env.JWT_SECRET);
+
+  if (!payload) {
+    return c.json({ error: "errors.reset_token_invalid" }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, payload.sub))
+    .get();
+
+  if (!user || user.deletedAt !== null) {
+    return c.json({ error: "errors.user_not_found" }, 404);
+  }
+
+  const passwordHash = await hashPassword(password);
+  const now = new Date();
+
+  await db
+    .update(users)
+    .set({ passwordHash, updatedAt: now })
+    .where(eq(users.id, user.id));
+
+  return c.json({ success: true, message: "auth.password_reset_success" });
 });
 
 export default auth;

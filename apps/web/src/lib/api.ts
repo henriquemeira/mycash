@@ -263,4 +263,24 @@ export const api = {
       body: formData,
     });
   },
+
+  sendTestEmail() {
+    return request<{ success: boolean; message: string; details?: string }>("/email/test", {
+      method: "POST",
+    });
+  },
+
+  forgotPassword(email: string) {
+    return request<{ success: boolean; message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword(token: string, password: string) {
+    return request<{ success: boolean; message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+  },
 };

@@ -13,13 +13,25 @@
     "email_placeholder": "seu@email.com",
     "password_placeholder": "Mínimo 8 caracteres",
     "submitting": "Aguarde...",
-    "dashboard_wip": "Dashboard em construção — Sprint 01 concluída."
+    "dashboard_wip": "Dashboard em construção — Sprint 01 concluída.",
+    "forgot_password": "Esqueci minha senha",
+    "send_reset_link": "Enviar link de recuperação",
+    "forgot_password_sent": "E-mail enviado!",
+    "forgot_password_sent_detail": "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.",
+    "back_to_login": "Voltar para o login",
+    "reset_password": "Redefinir senha",
+    "new_password": "Nova senha",
+    "confirm_password": "Confirmar senha",
+    "confirm_password_placeholder": "Repita a nova senha",
+    "password_reset_success": "Senha redefinida com sucesso!",
+    "email_sent_if_exists": "Se o e-mail estiver cadastrado, você receberá um link de recuperação."
   },
   "validation": {
     "email_required": "Informe o e-mail",
     "email_invalid": "E-mail inválido",
     "password_required": "Informe a senha",
-    "password_min_length": "A senha deve ter no mínimo 8 caracteres"
+    "password_min_length": "A senha deve ter no mínimo 8 caracteres",
+    "password_mismatch": "As senhas não coincidem"
   },
   "errors": {
     "unknown": "Erro desconhecido",
@@ -39,7 +51,14 @@
     "attachment_invalid_type": "Tipo de arquivo não permitido.",
     "attachment_blocked_type": "Tipo de arquivo bloqueado.",
     "attachment_not_found": "Anexo não encontrado.",
-    "s3_access_denied": "Acesso negado ao storage. Verifique se o token R2 tem permissão 'Object Read & Write'."
+    "s3_access_denied": "Acesso negado ao storage. Verifique se o token R2 tem permissão 'Object Read & Write'.",
+    "reset_token_invalid": "Token de recuperação inválido ou expirado.",
+    "reset_token_missing": "Token de recuperação não encontrado.",
+    "token_password_required": "Token e nova senha são obrigatórios."
+  },
+  "email": {
+    "test_success": "E-mail de teste enviado com sucesso! Verifique sua caixa de entrada.",
+    "test_failed": "Falha ao enviar e-mail de teste."
   },
   "nav": {
     "transactions": "Transações",

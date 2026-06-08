@@ -13,6 +13,9 @@ importers:
       '@mycash/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@mycash/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       drizzle-orm:
         specifier: ^0.39.3
         version: 0.39.3(@cloudflare/workers-types@4.20260606.1)
@@ -88,6 +91,15 @@ importers:
       drizzle-kit:
         specifier: ^0.30.5
         version: 0.30.6
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/email:
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20250303.0
+        version: 4.20260606.1
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

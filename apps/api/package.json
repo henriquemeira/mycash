@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@mycash/database": "workspace:*",
+    "@mycash/email": "workspace:*",
     "drizzle-orm": "^0.39.3",
     "hashids": "^2.3.0",
     "hono": "^4.7.4"
