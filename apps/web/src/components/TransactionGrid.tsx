@@ -15,6 +15,8 @@ import { Modal } from "./Modal";
 import { RecurrenceModal } from "./RecurrenceModal";
 import { AttachmentManager } from "./AttachmentManager";
 import { useToast } from "@/contexts/ToastContext";
+import { parseCliInput } from "@/lib/cliParser";
+import { fuzzyMatchCategory } from "@/lib/fuzzyMatch";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -99,6 +101,8 @@ interface TransactionGridProps {
   defaultAccountId?: string;
   expandedTxId?: string | null;
   onExpandTx?: (id: string | null) => void;
+  month: number;
+  year: number;
 }
 
 export function TransactionGrid({
@@ -112,6 +116,8 @@ export function TransactionGrid({
   defaultAccountId,
   expandedTxId,
   onExpandTx,
+  month,
+  year,
 }: TransactionGridProps) {
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
@@ -130,6 +136,21 @@ export function TransactionGrid({
   const [highlightedCategoryIndex, setHighlightedCategoryIndex] = useState(0);
   const [accountQuery, setAccountQuery] = useState("");
   const [highlightedAccountIndex, setHighlightedAccountIndex] = useState(0);
+
+  const [cliInput, setCliInput] = useState("");
+  const [cliFocused, setCliFocused] = useState(false);
+  const cliRef = useRef<HTMLInputElement>(null);
+
+  const selectedMonth = `${year}-${String(month).padStart(2, "0")}`;
+
+  const cliPreview = useMemo(() => {
+    return parseCliInput(cliInput, selectedMonth);
+  }, [cliInput, selectedMonth]);
+
+  const cliMatchedCategory = useMemo(() => {
+    if (!cliPreview.category) return null;
+    return fuzzyMatchCategory(cliPreview.category, categories);
+  }, [cliPreview.category, categories]);
 
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [notes, setNotes] = useState("");
@@ -490,41 +511,32 @@ export function TransactionGrid({
   const handleInsert = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (!desc.trim() || amountCents <= 0) return;
-      if (!dueDate) return;
 
-      let finalCategoryId = categoryId;
-      if (!finalCategoryId && categoryQuery.trim()) {
-        const exactMatch = categories.find(
-          (c) =>
-            c.name.toLowerCase() === categoryQuery.trim().toLowerCase() &&
-            (type === "transfer" || c.type === type)
-        );
-        if (exactMatch) {
-          finalCategoryId = exactMatch.id;
-        }
-      }
+      if (!cliInput.trim()) return;
 
-      let finalAccountId = accountId;
-      if (!finalAccountId && accountQuery.trim()) {
-        const exactMatch = accounts.find(
-          (a) => a.name.toLowerCase() === accountQuery.trim().toLowerCase()
-        );
-        if (exactMatch) {
-          finalAccountId = exactMatch.id;
-        }
-      }
+      const parsed = parseCliInput(cliInput, selectedMonth);
+      if (!parsed.amount || parsed.amount <= 0) return;
 
-      if (!finalCategoryId || !finalAccountId) return;
+      const amountCents = Math.round(parsed.amount * 100);
+
+      const matchedCategory = parsed.category
+        ? fuzzyMatchCategory(parsed.category, categories)
+        : null;
+      if (!matchedCategory) return;
+
+      const finalAccountId = defaultAccountId || "";
+      if (!finalAccountId) return;
+
+      const finalDate = parsed.date || today;
 
       const data: CreateTransactionData = {
-        description: desc.trim(),
+        description: parsed.description || t("transactions.cli_default_description"),
         amount: amountCents,
-        date: today,
-        dueDate,
-        type,
+        date: finalDate,
+        dueDate: finalDate,
+        type: parsed.type,
         accountId: finalAccountId,
-        categoryId: finalCategoryId,
+        categoryId: matchedCategory.id,
         notes: notes.trim() || undefined,
         reminderDate: reminderDate || undefined,
       };
@@ -543,21 +555,15 @@ export function TransactionGrid({
 
       await onCreateTransaction(data);
 
-      setDesc("");
-      setAmountCents(0);
-      setAmountDisplay("");
-      setCategoryId("");
-      setCategoryQuery("");
-      setAccountId(defaultAccountId || "");
-      setAccountQuery(selectedAccount?.name || "");
+      setCliInput("");
       setNotes("");
       setReminderDate("");
       setRecurrenceType("none");
       setInstallmentCount(2);
       setShowMoreOptions(false);
-      descRef.current?.focus();
+      cliRef.current?.focus();
     },
-    [desc, amountCents, dueDate, type, categoryId, accountId, today, onCreateTransaction, notes, reminderDate, recurrenceType, installmentCount, categoryQuery, accountQuery, categories, accounts, defaultAccountId, selectedAccount?.name]
+    [cliInput, selectedMonth, categories, defaultAccountId, today, onCreateTransaction, notes, reminderDate, recurrenceType, installmentCount, t]
   );
 
   const colCount = columns.length;
@@ -578,7 +584,7 @@ export function TransactionGrid({
         onSubmit={handleInsert}
         className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
       >
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+        <div className="relative flex flex-wrap items-center gap-2 px-4 py-2">
           <div className="flex overflow-hidden rounded-md border border-gray-200 dark:border-gray-600">
             {TYPE_OPTIONS.map((opt) => (
               <button
@@ -599,224 +605,83 @@ export function TransactionGrid({
             ))}
           </div>
 
-          <input
-            ref={descRef}
-            type="text"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder={t("transactions.new_description_placeholder")}
-            className="min-w-0 flex-1 border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
-          />
-
-          <div className="relative">
-            <div className="flex items-center gap-1">
-              {selectedCategory && (
-                <span
-                  className="ml-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: selectedCategory.color }}
-                />
-              )}
-              <input
-                type="text"
-                value={categoryQuery}
-                onChange={(e) => {
-                  setCategoryQuery(e.target.value);
-                  setCategoryId("");
-                  setShowCategoryDropdown(true);
-                  setHighlightedCategoryIndex(0);
-                }}
-                onFocus={() => {
-                  setShowCategoryDropdown(true);
-                  setShowAccountDropdown(false);
-                  setHighlightedCategoryIndex(0);
-                }}
-                onBlur={() => {
-                  setTimeout(() => setShowCategoryDropdown(false), 150);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setShowCategoryDropdown(true);
-                    setHighlightedCategoryIndex((prev) =>
-                      Math.min(prev + 1, filteredCategories.length - 1)
-                    );
-                  } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setShowCategoryDropdown(true);
-                    setHighlightedCategoryIndex((prev) => Math.max(prev - 1, 0));
-                  } else if (e.key === "Enter") {
-                    e.preventDefault();
-                    const items = filteredCategories;
-                    if (items.length > 0 && highlightedCategoryIndex < items.length) {
-                      const cat = items[highlightedCategoryIndex];
-                      setCategoryId(cat.id);
-                      setCategoryQuery(cat.name);
-                      setShowCategoryDropdown(false);
-                    }
-                  } else if (e.key === "Escape") {
-                    setShowCategoryDropdown(false);
-                  }
-                }}
-                placeholder={t("transactions.category")}
-                className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder:text-gray-500"
-              />
-            </div>
-
-            {showCategoryDropdown && (
-              <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
-                {filteredCategories.map((cat, index) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setCategoryId(cat.id);
-                      setCategoryQuery(cat.name);
-                      setShowCategoryDropdown(false);
-                    }}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300 ${
-                      index === highlightedCategoryIndex
-                        ? "bg-gray-100 dark:bg-gray-600"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-600"
-                    }`}
-                  >
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    {cat.name}
-                  </button>
-                ))}
-                {categoryQuery.trim() !== "" &&
-                  !filteredCategories.some(
-                    (c) => c.name.toLowerCase() === categoryQuery.trim().toLowerCase()
-                  ) && (
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        if (
-                          window.confirm(
-                            t("transactions.create_category_confirm", {
-                              name: categoryQuery.trim(),
-                            })
-                          )
-                        ) {
-                          handleCreateCategory(categoryQuery.trim());
-                        }
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                    >
-                      <Plus size={14} />
-                      {t("transactions.create_category", { name: categoryQuery.trim() })}
-                    </button>
-                  )}
-                {filteredCategories.length === 0 && categoryQuery.trim() === "" && (
-                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-                    {t("transactions.no_categories")}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
+          <div className="relative min-w-0 flex-1">
             <input
+              ref={cliRef}
               type="text"
-              value={accountQuery}
-              onChange={(e) => {
-                setAccountQuery(e.target.value);
-                setAccountId("");
-                setShowAccountDropdown(true);
-                setHighlightedAccountIndex(0);
-              }}
-              onFocus={() => {
-                setShowAccountDropdown(true);
-                setShowCategoryDropdown(false);
-                setHighlightedAccountIndex(0);
-              }}
-              onBlur={() => {
-                setTimeout(() => setShowAccountDropdown(false), 150);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  setShowAccountDropdown(true);
-                  setHighlightedAccountIndex((prev) =>
-                    Math.min(prev + 1, filteredAccounts.length - 1)
-                  );
-                } else if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  setShowAccountDropdown(true);
-                  setHighlightedAccountIndex((prev) => Math.max(prev - 1, 0));
-                } else if (e.key === "Enter") {
-                  e.preventDefault();
-                  const items = filteredAccounts;
-                  if (items.length > 0 && highlightedAccountIndex < items.length) {
-                    const acc = items[highlightedAccountIndex];
-                    setAccountId(acc.id);
-                    setAccountQuery(acc.name);
-                    setShowAccountDropdown(false);
-                  }
-                } else if (e.key === "Escape") {
-                  setShowAccountDropdown(false);
-                }
-              }}
-              placeholder={t("transactions.account")}
-              className="w-28 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:placeholder:text-gray-500"
+              value={cliInput}
+              onChange={(e) => setCliInput(e.target.value)}
+              onFocus={() => setCliFocused(true)}
+              onBlur={() => setTimeout(() => setCliFocused(false), 200)}
+              placeholder={t("transactions.cli_placeholder")}
+              className="w-full border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
 
-            {showAccountDropdown && (
-              <div className="absolute right-0 top-full z-20 mt-1 max-h-48 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
-                {filteredAccounts.map((acc, index) => (
-                  <button
-                    key={acc.id}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setAccountId(acc.id);
-                      setAccountQuery(acc.name);
-                      setShowAccountDropdown(false);
-                    }}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition-colors dark:text-gray-300 ${
-                      index === highlightedAccountIndex
-                        ? "bg-gray-100 dark:bg-gray-600"
-                        : "hover:bg-gray-100 dark:hover:bg-gray-600"
+            {cliFocused && cliInput.trim().length > 0 && (
+              <div className="absolute left-0 top-full z-50 mt-2 w-full max-w-xl rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <span
+                    className={`flex items-center gap-1 font-semibold ${
+                      cliPreview.type === "expense"
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-emerald-600 dark:text-emerald-400"
                     }`}
                   >
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: acc.color }}
-                    />
-                    {acc.name}
-                  </button>
-                ))}
-                {filteredAccounts.length === 0 && (
-                  <div className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-                    {t("transactions.no_accounts")}
-                  </div>
-                )}
+                    {cliPreview.type === "expense" ? "🔴" : "🟢"}{" "}
+                    {cliPreview.type === "expense"
+                      ? t("transactions.expense")
+                      : t("transactions.income")}
+                  </span>
+
+                  <span className="text-slate-400 dark:text-slate-500">|</span>
+
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    💰 R${" "}
+                    {cliPreview.amount
+                      ? cliPreview.amount.toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        })
+                      : "0,00"}
+                  </span>
+
+                  <span className="text-slate-400 dark:text-slate-500">|</span>
+
+                  <span className="text-slate-600 dark:text-slate-400">
+                    📝 {cliPreview.description || t("transactions.cli_no_description")}
+                  </span>
+
+                  {(cliPreview.category || cliPreview.date) && (
+                    <>
+                      <span className="text-slate-400 dark:text-slate-500">|</span>
+                      {cliPreview.category && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 font-medium ${
+                            cliMatchedCategory
+                              ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              : "italic text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          🏷️{" "}
+                          {cliMatchedCategory
+                            ? `@${cliMatchedCategory.name}`
+                            : `${t("transactions.cli_map_to")} ${cliPreview.category}?`}
+                        </span>
+                      )}
+                      {cliPreview.date && (
+                        <span className="text-slate-500 dark:text-slate-400">
+                          📅{" "}
+                          {new Date(cliPreview.date + "T12:00:00").toLocaleDateString(
+                            i18n.language === "pt" ? "pt-BR" : "en-US",
+                            { day: "numeric", month: "long", year: "numeric" }
+                          )}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
-
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            required
-            className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-            title={t("transactions.due_date")}
-          />
-
-          <input
-            type="text"
-            value={amountDisplay}
-            onChange={(e) => handleAmountChange(e.target.value)}
-            placeholder={t("transactions.new_amount_placeholder")}
-            className="w-28 border-none bg-transparent text-right text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
-            inputMode="decimal"
-          />
 
           <button
             type="submit"
@@ -929,10 +794,10 @@ export function TransactionGrid({
                 </div>
                 <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
                   {t("transactions.installment_hint", { count: installmentCount })}
-                  {amountCents > 0 && (
+                  {cliPreview.amount && cliPreview.amount > 0 && (
                     <span className="ml-1 text-gray-500 dark:text-gray-400">
                       {t("transactions.installment_value_hint", {
-                        value: formatCurrency(amountCents),
+                        value: formatCurrency(Math.round(cliPreview.amount * 100)),
                       })}
                     </span>
                   )}

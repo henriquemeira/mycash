@@ -325,6 +325,8 @@ export function TransactionsPage() {
             defaultAccountId={defaultAccountId}
             expandedTxId={expandedTxId}
             onExpandTx={setExpandedTxId}
+            month={month}
+            year={year}
           />
         )}
 
