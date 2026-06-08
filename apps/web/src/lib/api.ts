@@ -88,6 +88,7 @@ export interface Account {
   type: string;
   color: string;
   currency: string;
+  initialBalance?: number;
 }
 
 export interface Category {
@@ -216,10 +217,43 @@ export const api = {
     return request<{ items: Category[] }>("/categories");
   },
 
+  createAccount(data: { name: string; type: string; initialBalance?: number; color?: string }) {
+    return request<{ account: Account }>("/accounts", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateAccount(id: string, data: { name?: string; type?: string; initialBalance?: number; color?: string }) {
+    return request<{ account: Account }>(`/accounts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteAccount(id: string) {
+    return request<{ success: boolean }>(`/accounts/${id}`, {
+      method: "DELETE",
+    });
+  },
+
   createCategory(data: { name: string; type: string; color?: string; icon?: string }) {
     return request<{ category: Category }>("/categories", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  updateCategory(id: string, data: { name?: string; color?: string; icon?: string }) {
+    return request<{ category: Category }>(`/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteCategory(id: string) {
+    return request<{ success: boolean }>(`/categories/${id}`, {
+      method: "DELETE",
     });
   },
 

@@ -8,9 +8,10 @@ import { AuthPage } from "@/pages/AuthPage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
 import { BottomNav } from "@/components/BottomNav";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { useFrame } from "@/contexts/FrameContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Sun, Moon, Globe, Maximize2, Minimize2, Mail } from "lucide-react";
+import { Sun, Moon, Globe, Maximize2, Minimize2, Mail, Settings } from "lucide-react";
 import { api } from "@/lib/api";
 
 function TopBar() {
@@ -58,6 +59,13 @@ function TopBar() {
       </h1>
 
       <div className="hidden items-center gap-1 md:flex">
+        <button
+          onClick={() => { window.location.pathname = "/settings"; }}
+          className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          title={t("nav.settings")}
+        >
+          <Settings size={16} />
+        </button>
         <button
           onClick={handleTestEmail}
           className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -118,6 +126,10 @@ function AppContent() {
 
   if (window.location.pathname === "/reset-password") {
     return <ResetPasswordPage />;
+  }
+
+  if (window.location.pathname === "/settings") {
+    return user ? <SettingsPage /> : <AuthPage />;
   }
 
   return user ? <Dashboard /> : <AuthPage />;

@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { eq, and, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { accounts } from "@mycash/database/schema";
-import { encodeId } from "../utils/hashid";
+import { newId } from "../utils/id";
+import { encodeId, decodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
 
 const accountRoutes = new Hono<AuthEnv>();
@@ -25,9 +26,102 @@ accountRoutes.get("/", async (c) => {
     type: row.type,
     color: row.color,
     currency: row.currency,
+    initialBalance: row.initialBalance,
   }));
 
   return c.json({ items });
+});
+
+accountRoutes.post("/", async (c) => {
+  const userId = c.get("userId");
+  const db = drizzle(c.env.DB);
+  const salt = c.env.HASHIDS_SALT;
+  const body = await c.req.json();
+  const now = new Date();
+  const id = newId();
+
+  await db.insert(accounts).values({
+    id,
+    userId,
+    name: body.name,
+    type: body.type || "checking",
+    color: body.color || "#3b82f6",
+    initialBalance: body.initialBalance || 0,
+    currency: "BRL",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return c.json({
+    account: {
+      id: encodeId(id, salt),
+      name: body.name,
+      type: body.type || "checking",
+      color: body.color || "#3b82f6",
+      currency: "BRL",
+      initialBalance: body.initialBalance || 0,
+    },
+  });
+});
+
+accountRoutes.put("/:id", async (c) => {
+  const userId = c.get("userId");
+  const db = drizzle(c.env.DB);
+  const salt = c.env.HASHIDS_SALT;
+  const hash = c.req.param("id");
+  const decoded = decodeId(hash, salt);
+  if (!decoded) return c.json({ error: "errors.invalid_id" }, 400);
+
+  const body = await c.req.json();
+  const now = new Date();
+
+  await db
+    .update(accounts)
+    .set({
+      name: body.name,
+      type: body.type,
+      color: body.color,
+      initialBalance: body.initialBalance,
+      updatedAt: now,
+    })
+    .where(and(eq(accounts.id, decoded), eq(accounts.userId, userId)));
+
+  return c.json({
+    account: {
+      id: hash,
+      name: body.name,
+      type: body.type,
+      color: body.color,
+      currency: "BRL",
+      initialBalance: body.initialBalance,
+    },
+  });
+});
+
+accountRoutes.delete("/:id", async (c) => {
+  const userId = c.get("userId");
+  const db = drizzle(c.env.DB);
+  const salt = c.env.HASHIDS_SALT;
+  const hash = c.req.param("id");
+  const decoded = decodeId(hash, salt);
+  if (!decoded) return c.json({ error: "errors.invalid_id" }, 400);
+
+  const allActive = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.userId, userId), isNull(accounts.deletedAt)));
+
+  if (allActive.length <= 1) {
+    return c.json({ error: "errors.cannot_delete_last_account" }, 400);
+  }
+
+  const now = new Date();
+  await db
+    .update(accounts)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(and(eq(accounts.id, decoded), eq(accounts.userId, userId)));
+
+  return c.json({ success: true });
 });
 
 export default accountRoutes;

@@ -14,20 +14,20 @@ export function BottomNav({ onNewTransaction }: BottomNavProps) {
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
   const { logout } = useAuth();
-  const [showSettings, setShowSettings] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
-        setShowSettings(false);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
       }
     }
-    if (showSettings) {
+    if (showMenu) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showSettings]);
+  }, [showMenu]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 md:hidden">
@@ -45,21 +45,32 @@ export function BottomNav({ onNewTransaction }: BottomNavProps) {
           <span className="text-[10px] font-medium">{t("nav.new_transaction")}</span>
         </button>
 
-        <div className="relative" ref={settingsRef}>
+        <div className="relative" ref={menuRef}>
           <button
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={() => setShowMenu(!showMenu)}
             className="flex flex-col items-center gap-0.5 text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <Settings size={22} />
             <span className="text-[10px] font-medium">{t("nav.settings")}</span>
           </button>
 
-          {showSettings && (
+          {showMenu && (
             <div className="absolute bottom-full right-0 mb-2 w-48 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-600 dark:bg-gray-800">
               <button
                 onClick={() => {
-                  toggleTheme();
+                  window.location.pathname = "/settings";
+                  setShowMenu(false);
                 }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                <Settings size={16} />
+                {t("nav.settings")}
+              </button>
+
+              <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+
+              <button
+                onClick={() => { toggleTheme(); setShowMenu(false); }}
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
@@ -67,9 +78,7 @@ export function BottomNav({ onNewTransaction }: BottomNavProps) {
               </button>
 
               <button
-                onClick={() => {
-                  setLanguage(language === "pt" ? "en" : "pt");
-                }}
+                onClick={() => { setLanguage(language === "pt" ? "en" : "pt"); setShowMenu(false); }}
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
               >
                 <Globe size={16} />
@@ -79,10 +88,7 @@ export function BottomNav({ onNewTransaction }: BottomNavProps) {
               <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
 
               <button
-                onClick={() => {
-                  setShowSettings(false);
-                  logout();
-                }}
+                onClick={() => { setShowMenu(false); logout(); }}
                 className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/30"
               >
                 {t("app.logout")}
