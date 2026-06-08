@@ -17,7 +17,7 @@ O **Arquiteto de Software** e o **Engenheiro DevOps** já prepararam os scripts.
 * **Critérios de Aceitação:**
 * **Banco de Dados:** Criação do banco D1 de produção via painel/Wrangler e execução das migrações (`0000` a `0005`) para provisionar as tabelas.
 * **Storage:** Criação do Bucket R2 de produção para receber os anexos enviados pelos usuários.
-* **API (Backend):** Deploy do Worker (Hono) configurando as variáveis de ambiente secretas de produção (`JWT_SECRET`, `HASHIDS_SALT`, `EMAIL_API_KEY`, etc.) usando `wrangler secret put`.
+* **API (Backend):** Deploy do Worker (Hono) configurando as variáveis de ambiente secretas de produção (`JWT_SECRET`, `HASHIDS_SALT`, `EMAIL_API_KEY`, `TURNSTILE_SECRET_KEY`, etc.) usando `wrangler secret put`.
 * **Frontend:** Deploy do app React (Vite) no **Cloudflare Pages**, apontando os requests de API para o novo subdomínio de produção.
 
 
@@ -32,6 +32,7 @@ O **Arquiteto de Software** e o **Engenheiro DevOps** já prepararam os scripts.
 * Validar se o onboarding automático (criação da conta "CAIXA" e categorias padrão) ocorre perfeitamente no D1 de produção ao criar um novo usuário.
 * Testar o upload de um anexo PDF/imagem e conferir se o arquivo foi gravado corretamente no bucket R2 e abre via visualizador nativo.
 * Realizar o fluxo de esqueci minha senha e garantir que o e-mail em segundo plano seja disparado pelo driver de produção.
+* Verificar se o widget Cloudflare Turnstile aparece nas telas de login e registro em produção e bloqueia submissões não resolvidas.
 
 
 

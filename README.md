@@ -32,6 +32,7 @@ Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** co
 - Soft delete para preservação de histórico
 - Motor de e-mail agnóstico (SMTP / SendGrid / Mailersend) com envio assíncrono via `waitUntil`
 - Recuperação de senha e testes de e-mail integrados
+- Proteção anti-bot com **Cloudflare Turnstile** (ativada apenas em produção; desativada em localhost)
 
 ## Stack Tecnológica
 
@@ -220,9 +221,12 @@ pnpm db:migrate       # Aplicar migrações no banco
 | `EMAIL_API_KEY` | Chave de API (SendGrid ou Mailersend) | API* |
 | `EMAIL_FROM_ADDRESS` | Endereço de e-mail do remetente | Sim** |
 | `EMAIL_FROM_NAME` | Nome do remetente exibido nos e-mails | Não |
+| `ENVIRONMENT` | Ambiente de execução (`development` ou `production`) | Sim |
+| `TURNSTILE_SECRET_KEY` | Secret key do widget Cloudflare Turnstile | Sim* |
 
 *\* Obrigatório conforme o driver escolhido em `EMAIL_DRIVER`.*
 *\*\* Obrigatório se `EMAIL_DRIVER` estiver configurado.*
+*\*\*\* Obrigatório em produção (`ENVIRONMENT=production`). Sem essa variável, o login e registro serão rejeitados em produção.*
 
 *\* Obrigatórias para funcionalidade de anexos. Sem essas variáveis, o sistema funciona normalmente mas sem upload de comprovantes.*
 
@@ -290,8 +294,11 @@ pnpm --filter @mycash/api run deploy
 **4. Frontend (Pages)**
 
 ```bash
-# Configurar URL da API
-echo 'VITE_API_URL=https://mycash-api.seu-usuario.workers.dev' > apps/web/.env.production
+# Configurar URL da API e chave pública do Turnstile
+cat > apps/web/.env.production << 'EOF'
+VITE_API_URL=https://mycash-api.seu-usuario.workers.dev
+VITE_TURNSTILE_SITE_KEY=<site-key-do-widget-turnstile>
+EOF
 
 # Build e deploy
 pnpm --filter @mycash/web run build
@@ -315,6 +322,8 @@ pnpm --filter @mycash/api run deploy
 - Registro de usuario deve criar conta CAIXA e categorias automaticamente
 - Upload de anexo deve gravar no R2
 - Recuperacao de senha deve disparar e-mail
+- Widget Turnstile deve aparecer em login/registro (apenas em produção; em localhost não deve aparecer)
+- Login/registro em produção deve ser bloqueado sem resolver o desafio Turnstile
 
 ## Segurança
 

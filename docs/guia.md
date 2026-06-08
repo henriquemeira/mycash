@@ -87,6 +87,7 @@ A fim de remover intermediários externos (como Clerk ou Auth0) do fluxo básico
 * **Armazenamento de Senha:** Utilização obrigatória da **WebCrypto API** nativa do runtime para geração de hashes (criptografia assíncrona não bloqueante usando algoritmos baseados em salt complexo, como PBKDF2 ou Scrypt). Senhas nunca tocam o banco de dados em texto limpo.
 * **Restrição de Unicidade:** O campo `email` na tabela `users` é indexado como chave `UNIQUE` no banco de dados. Tentativas de cadastro duplicado disparam um erro SQL tratado pelo backend como `HTTP 409 Conflict`.
 * **Estado de Sessão:** Controle por JSON Web Tokens (**JWT**) transmitidos e armazenados em cookies HTTP protegidos com as flags `HttpOnly`, `Secure` e `SameSite=Strict`.
+* **Proteção Anti-Bot:** Em ambientes de produção, os endpoints de login e registro exigem validação via **Cloudflare Turnstile** antes de processar a requisição. O widget não é renderizado em `localhost`, mantendo a experiência de desenvolvimento fluida.
 
 ---
 

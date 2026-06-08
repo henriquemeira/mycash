@@ -1,9 +1,27 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 
 type AuthView = "login" | "register" | "forgot-password" | "forgot-sent";
+
+const isDev =
+  import.meta.env.DEV ||
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+
+const useTurnstile = !isDev;
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
 
 export function AuthPage() {
   const { login, register } = useAuth();
@@ -13,6 +31,46 @@ export function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!useTurnstile || !TURNSTILE_SITE_KEY) return;
+
+    const renderWidget = () => {
+      if (turnstileRef.current && window.turnstile) {
+        if (widgetIdRef.current) {
+          window.turnstile.reset(widgetIdRef.current);
+        }
+        widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => setTurnstileToken(token),
+          "error-callback": () => setTurnstileToken(""),
+          "expired-callback": () => setTurnstileToken(""),
+        });
+      }
+    };
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.async = true;
+      script.defer = true;
+      script.onload = renderWidget;
+      document.head.appendChild(script);
+      return () => {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+        if (widgetIdRef.current && window.turnstile) {
+          window.turnstile.remove(widgetIdRef.current);
+        }
+      };
+    }
+  }, [view]);
 
   const validateAuth = (): string | null => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,9 +98,14 @@ export function AuthPage() {
       return;
     }
 
+    if (useTurnstile && !turnstileToken) {
+      setError(t("errors.turnstile_required"));
+      return;
+    }
+
     setSubmitting(true);
     const action = view === "login" ? login : register;
-    const err = await action(email, password);
+    const err = await action(email, password, turnstileToken || undefined);
     if (err) setError(err);
     setSubmitting(false);
   };
@@ -235,6 +298,10 @@ export function AuthPage() {
               autoComplete={view === "login" ? "current-password" : "new-password"}
             />
           </div>
+
+          {useTurnstile && (
+            <div ref={turnstileRef} className="min-h-[65px]" />
+          )}
 
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

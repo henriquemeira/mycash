@@ -17,4 +17,6 @@ export interface Env {
   EMAIL_API_KEY: string;
   EMAIL_FROM_ADDRESS: string;
   EMAIL_FROM_NAME: string;
+  ENVIRONMENT?: string;
+  TURNSTILE_SECRET_KEY?: string;
 }

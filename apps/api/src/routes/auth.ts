@@ -10,13 +10,34 @@ import { encodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
 import { createEmailService, passwordResetEmail } from "@mycash/email";
 
+async function verifyTurnstile(token: string, secret: string): Promise<boolean> {
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secret, response: token }),
+  });
+  const data = (await res.json()) as { success: boolean };
+  return data.success === true;
+}
+
 const auth = new Hono<AuthEnv>();
 
 auth.post("/register", async (c) => {
-  const { email, password } = await c.req.json<{
+  const { email, password, turnstileToken } = await c.req.json<{
     email: string;
     password: string;
+    turnstileToken?: string;
   }>();
+
+  if (c.env.ENVIRONMENT === "production") {
+    if (!turnstileToken || !c.env.TURNSTILE_SECRET_KEY) {
+      return c.json({ error: "errors.turnstile_required" }, 400);
+    }
+    const valid = await verifyTurnstile(turnstileToken, c.env.TURNSTILE_SECRET_KEY);
+    if (!valid) {
+      return c.json({ error: "errors.turnstile_failed" }, 400);
+    }
+  }
 
   if (!email || !password) {
     return c.json({ error: "errors.email_password_required" }, 400);
@@ -121,10 +142,21 @@ auth.post("/register", async (c) => {
 });
 
 auth.post("/login", async (c) => {
-  const { email, password } = await c.req.json<{
+  const { email, password, turnstileToken } = await c.req.json<{
     email: string;
     password: string;
+    turnstileToken?: string;
   }>();
+
+  if (c.env.ENVIRONMENT === "production") {
+    if (!turnstileToken || !c.env.TURNSTILE_SECRET_KEY) {
+      return c.json({ error: "errors.turnstile_required" }, 400);
+    }
+    const valid = await verifyTurnstile(turnstileToken, c.env.TURNSTILE_SECRET_KEY);
+    if (!valid) {
+      return c.json({ error: "errors.turnstile_failed" }, 400);
+    }
+  }
 
   if (!email || !password) {
     return c.json({ error: "errors.email_password_required" }, 400);

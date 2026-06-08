@@ -57,7 +57,9 @@
     "token_password_required": "Token e nova senha são obrigatórios.",
     "cannot_delete_last_account": "Não é possível excluir a última conta ativa.",
     "category_not_found": "Categoria não encontrada.",
-    "account_not_found": "Conta não encontrada."
+    "account_not_found": "Conta não encontrada.",
+    "turnstile_required": "Verificação de segurança necessária.",
+    "turnstile_failed": "Falha na verificação de segurança. Tente novamente."
   },
   "email": {
     "test_success": "E-mail de teste enviado com sucesso! Verifique sua caixa de entrada.",

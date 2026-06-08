@@ -11,8 +11,8 @@ import { api, type User } from "@/lib/api";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<string | null>;
-  register: (email: string, password: string) => Promise<string | null>;
+  login: (email: string, password: string, turnstileToken?: string) => Promise<string | null>;
+  register: (email: string, password: string, turnstileToken?: string) => Promise<string | null>;
   logout: () => Promise<void>;
 }
 
@@ -29,15 +29,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { data, error } = await api.login(email, password);
+  const login = useCallback(async (email: string, password: string, turnstileToken?: string) => {
+    const { data, error } = await api.login(email, password, turnstileToken);
     if (error) return error;
     if (data?.user) setUser(data.user);
     return null;
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
-    const { data, error } = await api.register(email, password);
+  const register = useCallback(async (email: string, password: string, turnstileToken?: string) => {
+    const { data, error } = await api.register(email, password, turnstileToken);
     if (error) return error;
     if (data?.user) setUser(data.user);
     return null;

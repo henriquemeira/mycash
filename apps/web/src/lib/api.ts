@@ -154,17 +154,17 @@ export interface TransactionFilters {
 }
 
 export const api = {
-  register(email: string, password: string) {
+  register(email: string, password: string, turnstileToken?: string) {
     return request<{ user: User }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstileToken }),
     });
   },
 
-  login(email: string, password: string) {
+  login(email: string, password: string, turnstileToken?: string) {
     return request<{ user: User }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstileToken }),
     });
   },
 

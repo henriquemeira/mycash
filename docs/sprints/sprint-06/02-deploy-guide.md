@@ -155,6 +155,45 @@ npx wrangler secret put EMAIL_SMTP_SECURE --config apps/api/wrangler.toml
 
 ---
 
+## Passo 5.1 - Configurar o Turnstile (Proteção Anti-Bot)
+
+O MyCash utiliza o **Cloudflare Turnstile** para proteger as telas de login e registro contra bots. A proteção é **ativada apenas em produção**; em desenvolvimento local (`localhost`) o widget não é exibido.
+
+### 5.1.1 - Criar o Widget no Dashboard Cloudflare
+
+1. Acesse o [Dashboard Cloudflare](https://dash.cloudflare.com/) > **Turnstile**
+2. Clique em **Add widget**
+3. Escolha o modo **Managed**
+4. Em **Widget name**, insira: `mycash-prod`
+5. Em **Domains**, adicione:
+   - Seu domínio de produção (ex: `mycash.seudominio.com`)
+   - `localhost` (opcional, para testes locais com produção ativada)
+   - `127.0.0.1`
+6. Clique em **Create**
+
+Anote o **Site Key** (chave pública) e a **Secret Key** (chave privada).
+
+### 5.1.2 - Configurar a Secret Key no Worker
+
+```bash
+npx wrangler secret put TURNSTILE_SECRET_KEY --config apps/api/wrangler.toml
+# Valor: <secret-key-do-widget-turnstile>
+```
+
+> **Atenção:** A `TURNSTILE_SECRET_KEY` é obrigatória para que o login e registro funcionem em produção. Se não for configurada, o Worker rejeitará as requisições com erro `turnstile_required`.
+
+### 5.1.3 - Configurar o Site Key no Frontend
+
+Adicione ao arquivo `apps/web/.env.production`:
+
+```env
+VITE_TURNSTILE_SITE_KEY=<site-key-do-widget-turnstile>
+```
+
+> **Nota:** O `VITE_TURNSTILE_SITE_KEY` é uma variável pública (não é um secret). Ela é embutida no build do frontend.
+
+---
+
 ## Passo 6 - Atualizar o CORS para Producao
 
 Antes do deploy, o CORS no arquivo `apps/api/src/index.ts` esta hardcoded para `localhost`. E necessario torna-lo dinamico usando a variavel `APP_URL`.
@@ -217,10 +256,11 @@ Anote essa URL. Ela sera necessaria para configurar o frontend.
 
 ### 8.1 - Configurar a variavel de API URL
 
-Crie o arquivo `apps/web/.env.production` com a URL da API:
+Crie o arquivo `apps/web/.env.production` com a URL da API e a chave pública do Turnstile:
 
 ```env
 VITE_API_URL=https://mycash-api.seu-usuario.workers.dev
+VITE_TURNSTILE_SITE_KEY=<site-key-do-widget-turnstile>
 ```
 
 > **Nota:** Verifique se o frontend ja esta configurado para usar `VITE_API_URL`. Caso contrario, pode ser necessario ajustar o proxy/Vite config ou a camada de fetch do frontend para usar essa variavel em producao.
@@ -305,6 +345,13 @@ Atraves da interface web, faca upload de um PDF ou imagem e verifique:
 Atraves da interface web, clique em "Esqueci minha senha" e verifique:
 - O e-mail foi disparado pelo driver configurado (SendGrid/SMTP)
 - O link de recuperacao aponta para o dominio de producao correto
+
+### 9.6 - Protecao Turnstile (Login e Registro)
+
+Atraves da interface web, acesse a tela de login e verifique:
+- O widget do Turnstile aparece abaixo do campo de senha (apenas em producao; em `localhost` nao deve aparecer)
+- Tentar fazer login sem resolver o desafio Turnstile deve exibir a mensagem "Verificacao de seguranca necessaria"
+- Apos resolver o desafio, o login/registro deve funcionar normalmente
 
 ---
 
@@ -408,4 +455,6 @@ jobs:
 - [ ] Login funcional
 - [ ] Upload de anexo funcional (R2)
 - [ ] Recuperacao de senha funcional (e-mail)
+- [ ] Widget Turnstile visivel em login/registro (apenas producao)
+- [ ] Login/registro bloqueado sem Turnstile em producao
 - [ ] Dominio personalizado configurado (opcional)

@@ -10,8 +10,10 @@ compatibility_date = "2025-03-01"
 # S3_SECRET_KEY = ""
 # S3_BUCKET = ""
 # S3_REGION = "auto"
+# TURNSTILE_SECRET_KEY = ""
 APP_URL = "https://mycash-preview.page.dev"
 EMAIL_DRIVER = "smtp"
+ENVIRONMENT = "development"
 # EMAIL_SMTP_HOST = ""
 # EMAIL_SMTP_PORT = "2525"
 # EMAIL_SMTP_USER = ""
@@ -32,6 +34,8 @@ name = "mycash-api-production"
 
 [env.production.vars]
 APP_URL = "https://mycash.meira.net"
+ENVIRONMENT = "production"
+TURNSTILE_SECRET_KEY = "0x4AAAAAADJtY4HEjurjhXWM"
 
 [[env.production.d1_databases]]
 binding = "DB"
