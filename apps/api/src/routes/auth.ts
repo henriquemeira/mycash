@@ -211,7 +211,7 @@ auth.post("/login", async (c) => {
 });
 
 auth.post("/logout", (c) => {
-  deleteCookie(c, "token", { path: "/" });
+  deleteCookie(c, "token", { path: "/", secure: true, sameSite: "None" });
   return c.json({ message: "ok" });
 });
 
