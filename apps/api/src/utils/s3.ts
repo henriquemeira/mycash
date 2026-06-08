@@ -29,7 +29,7 @@ function toDatePath(now: Date): string {
 export function buildFileKey(userId: string, fileName: string): string {
   const ext = fileName.split(".").pop()?.toLowerCase() || "bin";
   const uniqueId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `attachments/${userId}/${toDatePath(new Date())}/${uniqueId}.${ext}`;
+  return `${userId}/attachments/${toDatePath(new Date())}/${uniqueId}.${ext}`;
 }
 
 async function hmacSha256(key: ArrayBuffer | Uint8Array, message: string): Promise<ArrayBuffer> {
