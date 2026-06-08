@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "wrangler d1 migrations apply mycash --local",
+    "predev": "wrangler d1 migrations apply mycash-dev --local",
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
