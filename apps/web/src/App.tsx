@@ -11,6 +11,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { useFrame } from "@/contexts/FrameContext";
 import { useToast } from "@/contexts/ToastContext";
 import { Sun, Moon, Globe, Maximize2, Minimize2, Mail } from "lucide-react";
+import { api } from "@/lib/api";
 
 function TopBar() {
   const { theme, toggleTheme } = useTheme();
@@ -22,16 +23,9 @@ function TopBar() {
 
   const handleTestEmail = async () => {
     try {
-      const res = await fetch("/api/email/test", {
-        method: "POST",
-        credentials: "include",
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        const detail = body.message || "";
-        const key = body.error || "errors.unknown";
-        const translated = t(key);
-        showToast(detail ? `${translated}: ${detail}` : translated, "error");
+      const { error } = await api.sendTestEmail();
+      if (error) {
+        showToast(error, "error");
       } else {
         showToast(t("email.test_success"), "success");
       }

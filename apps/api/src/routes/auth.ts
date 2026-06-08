@@ -102,7 +102,7 @@ auth.post("/register", async (c) => {
   setCookie(c, "token", token, {
     httpOnly: true,
     secure: true,
-    sameSite: "Strict",
+    sameSite: "None",
     maxAge: 60 * 60 * 24 * 30,
     path: "/",
   });
@@ -163,7 +163,7 @@ auth.post("/login", async (c) => {
   setCookie(c, "token", token, {
     httpOnly: true,
     secure: true,
-    sameSite: "Strict",
+    sameSite: "None",
     maxAge: 60 * 60 * 24 * 30,
     path: "/",
   });
