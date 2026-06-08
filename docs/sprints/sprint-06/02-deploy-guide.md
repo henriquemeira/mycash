@@ -193,13 +193,26 @@ npx wrangler secret put TURNSTILE_SECRET_KEY --config apps/api/wrangler.toml
 
 ### 5.1.3 - Configurar o Site Key no Frontend
 
+O `VITE_TURNSTILE_SITE_KEY` é uma variável **pública** (não é um secret). Ela pode ser configurada de duas formas:
+
+**Opção A — Manual (`.env.production`):**  
 Adicione ao arquivo `apps/web/.env.production`:
 
 ```env
 VITE_TURNSTILE_SITE_KEY=<site-key-do-widget-turnstile>
 ```
 
-> **Nota:** O `VITE_TURNSTILE_SITE_KEY` é uma variável pública (não é um secret). Ela é embutida no build do frontend.
+**Opção B — CI/CD (variável de ambiente no build):**  
+Passe a variável no `env:` da etapa de build do workflow. Exemplo:
+
+```yaml
+- run: pnpm --filter @mycash/web run build
+  env:
+    VITE_API_URL: https://mycash-api.seu-usuario.workers.dev
+    VITE_TURNSTILE_SITE_KEY: <site-key-do-widget-turnstile>
+```
+
+> **Nota:** Em CI/CD, prefira a Opção B para não depender do arquivo `.env.production` versionado. Em deploys manuais, a Opção A é suficiente.
 
 ---
 
@@ -407,15 +420,20 @@ No repositorio GitHub > Settings > Secrets and variables > Actions, adicione:
 
 ### 10.2 - Workflow de exemplo
 
+O workflow abaixo faz deploy em **pré-produção** para PRs e em **produção** para pushes na `main`:
+
 ```yaml
 name: Deploy MyCash
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy-api-preview:
+  deploy-preview:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -432,10 +450,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  deploy-api-production:
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: deploy-api-preview
-    environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
@@ -451,9 +468,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  deploy-web:
+  deploy-web-preview:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    needs: deploy-api-production
+    needs: deploy-preview
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
@@ -466,12 +484,38 @@ jobs:
       - run: pnpm install
       - run: pnpm --filter @mycash/web run build
         env:
-          VITE_API_URL: https://mycash-api.seu-usuario.workers.dev
+          VITE_API_URL: https://mycash-api-preview.infra-h2a.workers.dev
+          VITE_TURNSTILE_SITE_KEY: <site-key-do-widget-turnstile>
+      - run: npx wrangler pages deploy apps/web/dist --project-name=mycash-web-preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-web-production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @mycash/web run build
+        env:
+          VITE_API_URL: https://mycash-api.infra-h2a.workers.dev
+          VITE_TURNSTILE_SITE_KEY: <site-key-do-widget-turnstile>
       - run: npx wrangler pages deploy apps/web/dist --project-name=mycash-web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 ```
+
+> **Dica:** Para não repetir o `<site-key-do-widget-turnstile>` no workflow, crie uma variável de ambiente no GitHub (Settings > Secrets and variables > Actions > Variables) chamada `TURNSTILE_SITE_KEY` e use `${{ vars.TURNSTILE_SITE_KEY }}` no lugar do valor fixo.
 
 ---
 
