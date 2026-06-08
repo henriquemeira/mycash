@@ -175,6 +175,15 @@ Anote o **Site Key** (chave pública) e a **Secret Key** (chave privada).
 
 ### 5.1.2 - Configurar a Secret Key no Worker
 
+A `TURNSTILE_SECRET_KEY` é um secret e deve ser configurada via `wrangler secret put` no ambiente de produção:
+
+```bash
+npx wrangler secret put TURNSTILE_SECRET_KEY --env production --config apps/api/wrangler.toml
+# Valor: <secret-key-do-widget-turnstile>
+```
+
+Para o ambiente de preview (opcional, já que o Turnstile só é ativado em produção):
+
 ```bash
 npx wrangler secret put TURNSTILE_SECRET_KEY --config apps/api/wrangler.toml
 # Valor: <secret-key-do-widget-turnstile>
@@ -231,8 +240,17 @@ Isso permite que tanto o ambiente local quanto o de producao funcionem corretame
 
 ## Passo 7 - Deploy da API (Cloudflare Workers)
 
+O projeto possui dois ambientes no `wrangler.toml`:
+
+| Ambiente | Worker | Comando |
+|----------|--------|---------|
+| **Pré-produção (preview)** | `mycash-api-preview` | `wrangler deploy` (padrão) |
+| **Produção** | `mycash-api` | `wrangler deploy --env production` |
+
+### 7.1 - Deploy em Pré-Produção (Preview)
+
 ```bash
-pnpm --filter @mycash/api run deploy
+pnpm --filter @mycash/api run deploy:preview
 ```
 
 Ou, a partir do diretorio `apps/api`:
@@ -241,14 +259,33 @@ Ou, a partir do diretorio `apps/api`:
 npx wrangler deploy
 ```
 
-Apos o deploy, o Wrangler exibira a URL publica do Worker, por exemplo:
+Apos o deploy, o Wrangler exibira a URL publica do Worker de preview:
+
+```
+Published mycash-api-preview (x.xx sec)
+  https://mycash-api-preview.seu-usuario.workers.dev
+```
+
+### 7.2 - Deploy em Producao
+
+```bash
+pnpm --filter @mycash/api run deploy:production
+```
+
+Ou, a partir do diretorio `apps/api`:
+
+```bash
+npx wrangler deploy --env production
+```
+
+Apos o deploy:
 
 ```
 Published mycash-api (x.xx sec)
   https://mycash-api.seu-usuario.workers.dev
 ```
 
-Anote essa URL. Ela sera necessaria para configurar o frontend.
+> **Atencao:** A API de producao foi renomeada de `mycash-api-production` para `mycash-api`. O Worker `mycash-api-production` pode ser removido manualmente no Dashboard Cloudflare.
 
 ---
 
@@ -256,14 +293,14 @@ Anote essa URL. Ela sera necessaria para configurar o frontend.
 
 ### 8.1 - Configurar a variavel de API URL
 
-Crie o arquivo `apps/web/.env.production` com a URL da API e a chave pública do Turnstile:
+Crie o arquivo `apps/web/.env.production` com a URL da API de produção e a chave pública do Turnstile:
 
 ```env
 VITE_API_URL=https://mycash-api.seu-usuario.workers.dev
 VITE_TURNSTILE_SITE_KEY=<site-key-do-widget-turnstile>
 ```
 
-> **Nota:** Verifique se o frontend ja esta configurado para usar `VITE_API_URL`. Caso contrario, pode ser necessario ajustar o proxy/Vite config ou a camada de fetch do frontend para usar essa variavel em producao.
+> **Nota:** O `VITE_API_URL` deve apontar para a **API de produção** (`mycash-api`), nunca para a de preview. A URL do preview (`mycash-api-preview.seu-usuario.workers.dev`) é usada apenas em testes no ambiente de pré-produção.
 
 ### 8.2 - Build do frontend
 
@@ -289,31 +326,31 @@ https://mycash-web.pages.dev
 
 No Dashboard Cloudflare > Pages > mycash-web > Custom domains, adicione seu dominio (ex: `mycash.seudominio.com`).
 
-Se usar dominio personalizado, atualize a variavel `APP_URL`:
+Se usar dominio personalizado, atualize a variavel `APP_URL` nos secrets da API de produção:
 
 ```bash
-npx wrangler secret put APP_URL --config apps/api/wrangler.toml
+npx wrangler secret put APP_URL --env production --config apps/api/wrangler.toml
 # Novo valor: https://mycash.seudominio.com
 ```
 
-E faca redeploy da API:
+E faca redeploy da API em produção:
 
 ```bash
-pnpm --filter @mycash/api run deploy
+pnpm --filter @mycash/api run deploy:production
 ```
 
 ---
 
 ## Passo 9 - Verificacao Pos-Deploy (Smoke Tests)
 
-### 9.1 - Health Check
+### 9.1 - Health Check (Producao)
 
 ```bash
 curl https://mycash-api.seu-usuario.workers.dev/health
 # Esperado: {"status":"ok","timestamp":"..."}
 ```
 
-### 9.2 - Registro de Usuario
+### 9.2 - Registro de Usuario (Producao)
 
 ```bash
 curl -X POST https://mycash-api.seu-usuario.workers.dev/auth/register \
@@ -321,12 +358,14 @@ curl -X POST https://mycash-api.seu-usuario.workers.dev/auth/register \
   -d '{"email":"teste@exemplo.com","password":"12345678"}'
 ```
 
+Para testar o ambiente de preview, substitua `mycash-api` por `mycash-api-preview` nas URLs acima.
+
 Verificar se:
 - O usuario foi criado no D1
 - A conta "CAIXA" e categorias padrao foram geradas automaticamente (onboarding)
 - O response contem o token JWT
 
-### 9.3 - Login
+### 9.3 - Login (Producao)
 
 ```bash
 curl -X POST https://mycash-api.seu-usuario.workers.dev/auth/login \
@@ -376,7 +415,7 @@ on:
     branches: [main]
 
 jobs:
-  deploy-api:
+  deploy-api-preview:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -388,14 +427,33 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install
-      - run: pnpm --filter @mycash/api run deploy
+      - run: pnpm --filter @mycash/api run deploy:preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-api-production:
+    runs-on: ubuntu-latest
+    needs: deploy-api-preview
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @mycash/api run deploy:production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-web:
     runs-on: ubuntu-latest
-    needs: deploy-api
+    needs: deploy-api-production
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v2
@@ -446,7 +504,8 @@ jobs:
 - [ ] Credenciais R2 geradas (Access Key + Secret Key)
 - [ ] Secrets configurados no Worker (`wrangler secret put`)
 - [ ] CORS atualizado para usar `APP_URL` dinamicamente
-- [ ] API publicada no Cloudflare Workers
+- [ ] API de preview publicada (`mycash-api-preview`)
+- [ ] API de producao publicada (`mycash-api`, `wrangler deploy --env production`)
 - [ ] Arquivo `.env.production` do frontend com `VITE_API_URL`
 - [ ] Build do frontend realizado
 - [ ] Frontend publicado no Cloudflare Pages

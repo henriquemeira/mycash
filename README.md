@@ -288,13 +288,20 @@ wrangler secret put EMAIL_FROM_NAME    # MyCash App
 **3. API (Workers)**
 
 ```bash
-pnpm --filter @mycash/api run deploy
+# Preview (pré-produção)
+pnpm --filter @mycash/api run deploy:preview
+
+# Produção
+pnpm --filter @mycash/api run deploy:production
 ```
+
+> A API de produção é o worker `mycash-api` implantado via `--env production`.
+> A API de preview é o worker `mycash-api-preview` (padrão, sem `--env`).
 
 **4. Frontend (Pages)**
 
 ```bash
-# Configurar URL da API e chave pública do Turnstile
+# Configurar URL da API de produção e chave pública do Turnstile
 cat > apps/web/.env.production << 'EOF'
 VITE_API_URL=https://mycash-api.seu-usuario.workers.dev
 VITE_TURNSTILE_SITE_KEY=<site-key-do-widget-turnstile>
@@ -312,8 +319,8 @@ Apos o deploy, o frontend estara em `https://mycash-web.pages.dev`.
 No Dashboard Cloudflare > Pages > Custom domains, adicione seu dominio. Entao atualize a API:
 
 ```bash
-wrangler secret put APP_URL  # https://mycash.seudominio.com
-pnpm --filter @mycash/api run deploy
+wrangler secret put APP_URL --env production  # https://mycash.seudominio.com
+pnpm --filter @mycash/api run deploy:production
 ```
 
 ### Verificacao Pos-Deploy

@@ -1,4 +1,4 @@
-name = "mycash-api"
+name = "mycash-api-preview"
 main = "src/index.ts"
 compatibility_date = "2025-03-01"
 
@@ -13,7 +13,7 @@ compatibility_date = "2025-03-01"
 # TURNSTILE_SECRET_KEY = ""
 APP_URL = "https://mycash-preview.page.dev"
 EMAIL_DRIVER = "smtp"
-ENVIRONMENT = "development"
+ENVIRONMENT = "preview"
 # EMAIL_SMTP_HOST = ""
 # EMAIL_SMTP_PORT = "2525"
 # EMAIL_SMTP_USER = ""
@@ -30,12 +30,12 @@ database_id = "9a113b6b-f8cd-4a8c-9f4b-f8bf340dd832"
 migrations_dir = "../../packages/database/drizzle"
 
 [env.production]
-name = "mycash-api-production"
+name = "mycash-api"
 
 [env.production.vars]
 APP_URL = "https://mycash.meira.net"
 ENVIRONMENT = "production"
-TURNSTILE_SECRET_KEY = "0x4AAAAAADJtY4HEjurjhXWM"
+# TURNSTILE_SECRET_KEY = ""
 
 [[env.production.d1_databases]]
 binding = "DB"

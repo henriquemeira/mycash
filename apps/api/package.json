@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler deploy --env preview",
+    "deploy:preview": "wrangler deploy",
     "deploy:production": "wrangler deploy --env production",
     "typecheck": "tsc --noEmit"
   },

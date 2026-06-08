@@ -15,5 +15,5 @@ EMAIL_SMTP_SECURE=false
 EMAIL_API_KEY=
 EMAIL_FROM_ADDRESS=noreply@mycash.com
 EMAIL_FROM_NAME="MyCash App"
-ENVIRONMENT=development
+ENVIRONMENT=preview
 # TURNSTILE_SECRET_KEY=      # Opcional em dev. Obrigatório em produção (ENVIRONMENT=production).
