@@ -40,9 +40,6 @@ export function AuthPage() {
 
     const renderWidget = () => {
       if (turnstileRef.current && window.turnstile) {
-        if (widgetIdRef.current) {
-          window.turnstile.reset(widgetIdRef.current);
-        }
         widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
           sitekey: TURNSTILE_SITE_KEY,
           callback: (token: string) => setTurnstileToken(token),
@@ -69,6 +66,14 @@ export function AuthPage() {
           window.turnstile.remove(widgetIdRef.current);
         }
       };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!useTurnstile) return;
+    setTurnstileToken("");
+    if (widgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
     }
   }, [view]);
 
