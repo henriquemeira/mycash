@@ -197,5 +197,6 @@
   "balances": {
     "total_wealth": "Patrimônio Total Real",
     "by_account": "Saldos por Conta"
-  }
+  },
+  "go_to_current_month": "Ir para o mês atual"
 }

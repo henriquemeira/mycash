@@ -197,5 +197,6 @@
   "balances": {
     "total_wealth": "Total Net Wealth",
     "by_account": "Balances by Account"
-  }
+  },
+  "go_to_current_month": "Go to current month"
 }

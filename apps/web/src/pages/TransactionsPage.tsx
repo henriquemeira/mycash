@@ -23,13 +23,10 @@ function formatCurrencyCSV(value: number): string {
   return (value / 100).toFixed(2);
 }
 
-export function TransactionsPage() {
+export function TransactionsPage({ month, year, onMonthChange }: { month: number; year: number; onMonthChange: (m: number, y: number) => void }) {
   const { framed } = useFrame();
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
   const [items, setItems] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<TransactionSummary>(EMPTY_SUMMARY);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -240,8 +237,7 @@ export function TransactionsPage() {
   );
 
   const handleMonthChange = (m: number, y: number) => {
-    setMonth(m);
-    setYear(y);
+    onMonthChange(m, y);
   };
 
   const handleExportCSV = useCallback(() => {

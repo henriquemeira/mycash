@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -11,16 +12,23 @@ import { BottomNav } from "@/components/BottomNav";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { useFrame } from "@/contexts/FrameContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Sun, Moon, Globe, Maximize2, Minimize2, Mail, Settings } from "lucide-react";
+import { Sun, Moon, Globe, Maximize2, Minimize2, Mail, Settings, CalendarDays } from "lucide-react";
 import { api } from "@/lib/api";
 
-function TopBar() {
+function TopBar({ month, year, onMonthChange }: { month: number; year: number; onMonthChange: (m: number, y: number) => void }) {
   const { theme, toggleTheme } = useTheme();
   const { framed, toggleFramed } = useFrame();
   const { language, setLanguage } = useLanguage();
   const { logout } = useAuth();
   const { showToast } = useToast();
   const { t } = useTranslation();
+
+  const now = new Date();
+  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+
+  const goToCurrentMonth = () => {
+    onMonthChange(now.getMonth() + 1, now.getFullYear());
+  };
 
   const handleTestEmail = async () => {
     try {
@@ -59,6 +67,15 @@ function TopBar() {
       </h1>
 
       <div className="hidden items-center gap-1 md:flex">
+        {!isCurrentMonth && (
+          <button
+            onClick={goToCurrentMonth}
+            title={t("go_to_current_month")}
+            className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            <CalendarDays size={16} />
+          </button>
+        )}
         <button
           onClick={() => { window.location.pathname = "/settings"; }}
           className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -101,11 +118,20 @@ function handleNewTransaction() {
 }
 
 function Dashboard() {
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+
+  const handleMonthChange = (m: number, y: number) => {
+    setMonth(m);
+    setYear(y);
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
-      <TopBar />
+      <TopBar month={month} year={year} onMonthChange={handleMonthChange} />
       <main className="flex-1 pb-16 md:pb-0">
-        <TransactionsPage />
+        <TransactionsPage month={month} year={year} onMonthChange={handleMonthChange} />
       </main>
       <BottomNav onNewTransaction={handleNewTransaction} />
     </div>
