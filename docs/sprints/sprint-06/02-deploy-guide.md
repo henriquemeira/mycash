@@ -46,10 +46,12 @@ Copie o `database_id` gerado e atualize o `apps/api/wrangler.toml`:
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "mycash-prod"
+database_name = "mycash"
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # <-- substitua aqui
 migrations_dir = "../../packages/database/drizzle"
 ```
+
+> **Nota:** O `database_name` permanece `mycash` para compatibilidade com o ambiente local. O `database_id` e o que vincula ao banco de producao remoto.
 
 ---
 
@@ -58,7 +60,7 @@ migrations_dir = "../../packages/database/drizzle"
 As migracoes (0000 a 0005) criam as tabelas: `users`, `accounts`, `categories`, `transactions`, `recurrence_rules` e `attachments`.
 
 ```bash
-npx wrangler d1 migrations apply mycash-prod --remote --config apps/api/wrangler.toml
+npx wrangler d1 migrations apply mycash --remote --config apps/api/wrangler.toml
 ```
 
 > **Importante:** E necessario passar o caminho do `wrangler.toml` com `--config` (ou executar o comando dentro do diretorio `apps/api/`).
@@ -68,7 +70,7 @@ npx wrangler d1 migrations apply mycash-prod --remote --config apps/api/wrangler
 Para verificar se as tabelas foram criadas:
 
 ```bash
-npx wrangler d1 execute mycash-prod --remote --command="SELECT name FROM sqlite_master WHERE type='table';"
+npx wrangler d1 execute mycash --remote --command="SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 Deve retornar: `users`, `accounts`, `categories`, `transactions`, `recurrence_rules`, `attachments`.
