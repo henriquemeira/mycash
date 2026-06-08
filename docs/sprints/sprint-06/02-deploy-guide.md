@@ -58,8 +58,10 @@ migrations_dir = "../../packages/database/drizzle"
 As migracoes (0000 a 0005) criam as tabelas: `users`, `accounts`, `categories`, `transactions`, `recurrence_rules` e `attachments`.
 
 ```bash
-npx wrangler d1 migrations apply mycash-prod --remote
+npx wrangler d1 migrations apply mycash-prod --remote --config apps/api/wrangler.toml
 ```
+
+> **Importante:** E necessario passar o caminho do `wrangler.toml` com `--config` (ou executar o comando dentro do diretorio `apps/api/`).
 
 > **Nota:** O Wrangler le automaticamente as migracoes do diretorio configurado em `migrations_dir`.
 
@@ -96,53 +98,55 @@ npx wrangler r2 bucket create mycash-prod
 
 O Worker usa variaveis secretas que nao devem ser commitadas no codigo. Configure cada uma com:
 
+> **Importante:** Todos os comandos abaixo precisam do `--config apps/api/wrangler.toml` para localizar o worker. Se preferir, execute-os dentro do diretorio `apps/api/` e omita o `--config`.
+
 ```bash
 # Obrigatorias - Seguranca
-npx wrangler secret put JWT_SECRET
+npx wrangler secret put JWT_SECRET --config apps/api/wrangler.toml
 # Valor: uma string aleatoria de no minimo 32 caracteres. Ex: openssl rand -base64 48
 
-npx wrangler secret put HASHIDS_SALT
+npx wrangler secret put HASHIDS_SALT --config apps/api/wrangler.toml
 # Valor: uma string aleatoria. Ex: openssl rand -base64 24
 
 # Obrigatorias - Storage R2
-npx wrangler secret put S3_ENDPOINT
+npx wrangler secret put S3_ENDPOINT --config apps/api/wrangler.toml
 # Valor: https://<account_id>.r2.cloudflarestorage.com
 
-npx wrangler secret put S3_ACCESS_KEY
+npx wrangler secret put S3_ACCESS_KEY --config apps/api/wrangler.toml
 # Valor: Access Key ID gerado no Passo 4
 
-npx wrangler secret put S3_SECRET_KEY
+npx wrangler secret put S3_SECRET_KEY --config apps/api/wrangler.toml
 # Valor: Secret Access Key gerado no Passo 4
 
-npx wrangler secret put S3_BUCKET
+npx wrangler secret put S3_BUCKET --config apps/api/wrangler.toml
 # Valor: mycash-prod (nome do bucket criado no Passo 4)
 
-npx wrangler secret put S3_REGION
+npx wrangler secret put S3_REGION --config apps/api/wrangler.toml
 # Valor: auto
 
 # Obrigatoria - URL da aplicacao (para links em e-mails e CORS)
-npx wrangler secret put APP_URL
+npx wrangler secret put APP_URL --config apps/api/wrangler.toml
 # Valor: https://mycash.seudominio.com (URL do frontend em producao)
 
 # E-mail (escolha seu driver: smtp, sendgrid ou mailersend)
-npx wrangler secret put EMAIL_DRIVER
+npx wrangler secret put EMAIL_DRIVER --config apps/api/wrangler.toml
 # Valor: sendgrid (recomendado para producao)
 
-npx wrangler secret put EMAIL_API_KEY
+npx wrangler secret put EMAIL_API_KEY --config apps/api/wrangler.toml
 # Valor: SG.xxxxxxxxxxxxxxxxxxxxxx (chave do SendGrid)
 
-npx wrangler secret put EMAIL_FROM_ADDRESS
+npx wrangler secret put EMAIL_FROM_ADDRESS --config apps/api/wrangler.toml
 # Valor: noreply@seudominio.com
 
-npx wrangler secret put EMAIL_FROM_NAME
+npx wrangler secret put EMAIL_FROM_NAME --config apps/api/wrangler.toml
 # Valor: MyCash App
 
 # Se usar SMTP em vez de SendGrid/Mailersend:
-npx wrangler secret put EMAIL_SMTP_HOST
-npx wrangler secret put EMAIL_SMTP_PORT
-npx wrangler secret put EMAIL_SMTP_USER
-npx wrangler secret put EMAIL_SMTP_PASS
-npx wrangler secret put EMAIL_SMTP_SECURE
+npx wrangler secret put EMAIL_SMTP_HOST --config apps/api/wrangler.toml
+npx wrangler secret put EMAIL_SMTP_PORT --config apps/api/wrangler.toml
+npx wrangler secret put EMAIL_SMTP_USER --config apps/api/wrangler.toml
+npx wrangler secret put EMAIL_SMTP_PASS --config apps/api/wrangler.toml
+npx wrangler secret put EMAIL_SMTP_SECURE --config apps/api/wrangler.toml
 ```
 
 > **Dica:** Para gerar secrets seguros, use `openssl rand -base64 48` no terminal.
@@ -246,7 +250,7 @@ No Dashboard Cloudflare > Pages > mycash-web > Custom domains, adicione seu domi
 Se usar dominio personalizado, atualize a variavel `APP_URL`:
 
 ```bash
-npx wrangler secret put APP_URL
+npx wrangler secret put APP_URL --config apps/api/wrangler.toml
 # Novo valor: https://mycash.seudominio.com
 ```
 

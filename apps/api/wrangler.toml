@@ -23,6 +23,6 @@ compatibility_date = "2025-03-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "mycash"
-database_id = "local"
+database_name = "mycash-prod"
+database_id = "17269bf5-6f44-4e15-bfca-5fcead5fc147"
 migrations_dir = "../../packages/database/drizzle"

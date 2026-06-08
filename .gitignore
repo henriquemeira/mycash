@@ -7,3 +7,4 @@ dist/
 .env.local
 .env.*.local
 .dev.vars
+apps/web/.env.production
