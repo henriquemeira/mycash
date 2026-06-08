@@ -1,26 +1,37 @@
 # MyCash
 
+> **v1.0** — Financeiro pessoal na borda da Cloudflare. MVP completo em produção.
+
 Sistema de controle financeiro pessoal leve, rápido e focado em edição inline de transações com motor robusto de recorrências.
 
 ## Objetivo
 
-Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** com infraestrutura descentralizada na borda (*Edge Computing*), minimizando dependência de serviços externos pagos. Implantável na camada gratuita da Cloudflare ou em servidor doméstico.
+Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** com infraestrutura descentralizada na borda (*Edge Computing*), minimizando dependência de serviços externos pagos. Implantável na camada gratuita da Cloudflare ou em servidor doméstico. **Em produção desde Junho/2026.**
 
 ## Features
 
+### Lançamentos e Produtividade
 - Autenticação nativa com WebCrypto API (PBKDF2)
 - Onboarding automatizado (conta "CAIXA" + categorias padrão)
-- IDs ofuscados via SnowflakeID + Hashids (segurança contra enumeração)
-- API RESTful com Hono.js no Cloudflare Workers
-- Frontend React com edição inline via TanStack Table
-- Banco de dados compatível com Cloudflare D1, PostgreSQL ou SQLite
-- Storage S3-compatible (Cloudflare R2 ou MinIO)
-- Soft delete para preservação de histórico
-- Upload de comprovantes via URLs pré-assinadas (Cloudflare R2 / MinIO)
+- Smart CLI: linha de comando financeira inteligente (`/-` e `/+`) com interpretação de tags (`@`, `#`) e preview de saldo
+- Edição inline via TanStack Table com suporte a parcelamento e recorrência mensal
 - Filtros avançados (busca textual, conta, categoria, tipo)
 - Exportação CSV client-side
-- Motor de e-mail agnóstico (SMTP / SendGrid / Mailersend)
-- Recuperação de senha via e-mail
+
+### Gestão Financeira
+- CRUD completo de contas e categorias com soft delete e cores customizadas
+- Saldo consolidado por conta com agregação SQL (D1) — apenas transações pagas e não deletadas
+- Dropdown de Patrimônio Líquido Total no cabeçalho com lazy loading e visão por conta
+
+### Infraestrutura e Segurança
+- API RESTful com Hono.js no Cloudflare Workers
+- Banco de dados Cloudflare D1 (SQLite na borda)
+- Storage S3-compatible (Cloudflare R2 ou MinIO)
+- Upload de comprovantes via URLs pré-assinadas
+- IDs ofuscados via SnowflakeID + Hashids (proteção IDOR)
+- Soft delete para preservação de histórico
+- Motor de e-mail agnóstico (SMTP / SendGrid / Mailersend) com envio assíncrono via `waitUntil`
+- Recuperação de senha e testes de e-mail integrados
 
 ## Stack Tecnológica
 
@@ -334,6 +345,19 @@ Campo `deleted_at` em todas as tabelas principais para preservação de históri
 - [Sprint 05 - Revisao](docs/sprints/sprint-05/02-revisao.md)
 - [Sprint 06 - Go Live](docs/sprints/sprint-06/01-golive.md)
 - [Sprint 06 - Guia de Deploy](docs/sprints/sprint-06/02-deploy-guide.md)
+- [Sprint 07 - CLI Inteligente](docs/sprints/sprint-07)
+- [Sprint 08 - Configurações e CRUD](docs/sprints/sprint-08)
+- [Sprint 09 - Saldos e Patrimônio](docs/sprints/sprint-09)
+
+## Próximas Releases (V2.0)
+
+Funcionalidades mapeadas para o próximo ciclo:
+
+- **Gráficos e Dashboards** — visualização mensal/anual com sparklines
+- **Conciliação bancária** — importação e matching de extratos CSV/OFX
+- **Relatórios avançados** — categorização inteligente e projeções
+- **Modo off-line** — suporte a PWA com cache de transações
+- **Compartilhamento** — contas conjuntas e permissões por usuário
 
 ## Contribuição
 
