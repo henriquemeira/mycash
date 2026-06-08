@@ -228,38 +228,82 @@ O schema está em `packages/database/src/schema.ts`. Tabelas principais:
 
 ## Deploy
 
-### Cloudflare Workers
+> Guia completo: [docs/sprints/sprint-06/02-deploy-guide.md](docs/sprints/sprint-06/02-deploy-guide.md)
+
+### Cloudflare (Producao)
+
+A implantacao na Cloudflare segue 3 etapas: banco de dados, API e frontend.
+
+**1. Banco de Dados D1**
 
 ```bash
-# Login no Cloudflare
-wrangler login
+# Criar banco de producao
+wrangler d1 create mycash-prod
 
-# Deploy da API
+# Copiar o database_id gerado para apps/api/wrangler.toml
+
+# Aplicar migracoes
+wrangler d1 migrations apply mycash-prod --remote
+```
+
+**2. Storage R2**
+
+```bash
+# Criar bucket para anexos
+wrangler r2 bucket create mycash-prod
+```
+
+Gerar credenciais de API R2 no Dashboard Cloudflare e configurar os secrets:
+
+```bash
+wrangler secret put S3_ENDPOINT      # https://<account_id>.r2.cloudflarestorage.com
+wrangler secret put S3_ACCESS_KEY     # Access Key ID do R2
+wrangler secret put S3_SECRET_KEY     # Secret Access Key do R2
+wrangler secret put S3_BUCKET         # mycash-prod
+wrangler secret put S3_REGION         # auto
+wrangler secret put JWT_SECRET        # openssl rand -base64 48
+wrangler secret put HASHIDS_SALT      # openssl rand -base64 24
+wrangler secret put APP_URL           # https://mycash.seudominio.com
+wrangler secret put EMAIL_DRIVER       # sendgrid
+wrangler secret put EMAIL_API_KEY      # SG.xxxxx
+wrangler secret put EMAIL_FROM_ADDRESS # noreply@seudominio.com
+wrangler secret put EMAIL_FROM_NAME    # MyCash App
+```
+
+**3. API (Workers)**
+
+```bash
 pnpm --filter @mycash/api run deploy
-
-# Criar banco D1
-wrangler d1 create mycash
-
-# Atualizar wrangler.toml com o database_id gerado
-
-# Aplicar migrações
-wrangler d1 execute mycash --file=packages/database/drizzle/*.sql
 ```
 
-### Self-Hosting
-
-Para execução local com Node.js/Bun:
+**4. Frontend (Pages)**
 
 ```bash
-# Build do frontend
-pnpm --filter @mycash/web run build
+# Configurar URL da API
+echo 'VITE_API_URL=https://mycash-api.seu-usuario.workers.dev' > apps/web/.env.production
 
-# Servir frontend (ex: nginx, caddy)
-# Rodar API com Bun ou Node
-cd apps/api && bun run src/index.ts
+# Build e deploy
+pnpm --filter @mycash/web run build
+npx wrangler pages deploy apps/web/dist --project-name=mycash-web
 ```
 
-Configure variáveis de ambiente no servidor e use PostgreSQL/SQLite local.
+Apos o deploy, o frontend estara em `https://mycash-web.pages.dev`.
+
+### Dominio Personalizado
+
+No Dashboard Cloudflare > Pages > Custom domains, adicione seu dominio. Entao atualize a API:
+
+```bash
+wrangler secret put APP_URL  # https://mycash.seudominio.com
+pnpm --filter @mycash/api run deploy
+```
+
+### Verificacao Pos-Deploy
+
+- `GET /health` deve retornar `{"status":"ok"}`
+- Registro de usuario deve criar conta CAIXA e categorias automaticamente
+- Upload de anexo deve gravar no R2
+- Recuperacao de senha deve disparar e-mail
 
 ## Segurança
 
@@ -287,7 +331,9 @@ Campo `deleted_at` em todas as tabelas principais para preservação de históri
 - [Sprint 04 - Planejamento](docs/sprints/sprint-04/01-planejamento.md)
 - [Sprint 04 - Plano de Ação](docs/sprints/sprint-04/02-plano-de-acao.md)
 - [Sprint 05 - Planejamento](docs/sprints/sprint-05/01-planejamento.md)
-- [Sprint 05 - Revisão](docs/sprints/sprint-05/02-revisao.md)
+- [Sprint 05 - Revisao](docs/sprints/sprint-05/02-revisao.md)
+- [Sprint 06 - Go Live](docs/sprints/sprint-06/01-golive.md)
+- [Sprint 06 - Guia de Deploy](docs/sprints/sprint-06/02-deploy-guide.md)
 
 ## Contribuição
 

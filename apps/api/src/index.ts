@@ -13,7 +13,13 @@ const app = new Hono<{ Bindings: Env }>();
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173"],
+    origin: (origin, c) => {
+      const appUrl = c.env.APP_URL || "http://localhost:5173";
+      if (origin === appUrl || origin === "http://localhost:5173") {
+        return origin;
+      }
+      return appUrl;
+    },
     credentials: true,
   })
 );
