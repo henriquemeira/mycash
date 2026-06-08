@@ -91,6 +91,14 @@ export interface Account {
   initialBalance?: number;
 }
 
+export interface AccountBalance {
+  id: string;
+  name: string;
+  color: string;
+  type: string;
+  currentBalance: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -211,6 +219,10 @@ export const api = {
 
   getAccounts() {
     return request<{ items: Account[] }>("/accounts");
+  },
+
+  getAccountBalances() {
+    return request<{ items: AccountBalance[] }>("/accounts/balances");
   },
 
   getCategories() {

@@ -191,5 +191,9 @@
     "10": "October",
     "11": "November",
     "12": "December"
+  },
+  "balances": {
+    "total_wealth": "Total Net Wealth",
+    "by_account": "Balances by Account"
   }
 }

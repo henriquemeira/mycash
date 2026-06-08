@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { TransactionSummary } from "@/lib/api";
+import { HeaderSummary } from "./HeaderSummary";
 
 interface BalanceRibbonProps {
   summary: TransactionSummary;
@@ -35,20 +36,7 @@ export function BalanceRibbon({ summary }: BalanceRibbonProps) {
         </span>
       </div>
 
-      <div className="flex flex-col items-end">
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {t("transactions.balance")}
-        </span>
-        <span
-          className={`text-sm font-bold ${
-            summary.balance >= 0
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-rose-600 dark:text-rose-400"
-          }`}
-        >
-          {formatCurrency(summary.balance)}
-        </span>
-      </div>
+      <HeaderSummary monthlyBalance={summary.balance} />
     </div>
   );
 }

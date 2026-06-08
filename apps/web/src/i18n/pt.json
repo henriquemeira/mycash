@@ -191,5 +191,9 @@
     "10": "Outubro",
     "11": "Novembro",
     "12": "Dezembro"
+  },
+  "balances": {
+    "total_wealth": "Patrimônio Total Real",
+    "by_account": "Saldos por Conta"
   }
 }

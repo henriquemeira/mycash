@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { accounts } from "@mycash/database/schema";
+import { accounts, transactions } from "@mycash/database/schema";
 import { newId } from "../utils/id";
 import { encodeId, decodeId } from "../utils/hashid";
 import { authMiddleware, type AuthEnv } from "../middleware/auth";
@@ -122,6 +122,40 @@ accountRoutes.delete("/:id", async (c) => {
     .where(and(eq(accounts.id, decoded), eq(accounts.userId, userId)));
 
   return c.json({ success: true });
+});
+
+accountRoutes.get("/balances", async (c) => {
+  const userId = c.get("userId");
+  const db = drizzle(c.env.DB);
+  const salt = c.env.HASHIDS_SALT;
+
+  const accountBalances = await db
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      color: accounts.color,
+      type: accounts.type,
+      initialBalance: accounts.initialBalance,
+      totalIncome: sql<number>`TOTAL(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = 1 AND ${transactions.deletedAt} IS NULL THEN ${transactions.amount} ELSE 0 END)`,
+      totalExpense: sql<number>`TOTAL(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = 1 AND ${transactions.deletedAt} IS NULL THEN ABS(${transactions.amount}) ELSE 0 END)`,
+    })
+    .from(accounts)
+    .leftJoin(transactions, eq(accounts.id, transactions.accountId))
+    .where(and(eq(accounts.userId, userId), isNull(accounts.deletedAt)))
+    .groupBy(accounts.id);
+
+  const items = accountBalances.map((acc) => {
+    const currentBalanceCents = acc.initialBalance + acc.totalIncome - acc.totalExpense;
+    return {
+      id: encodeId(acc.id, salt),
+      name: acc.name,
+      color: acc.color,
+      type: acc.type,
+      currentBalance: currentBalanceCents,
+    };
+  });
+
+  return c.json({ items });
 });
 
 export default accountRoutes;
