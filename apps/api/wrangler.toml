@@ -10,8 +10,8 @@ compatibility_date = "2025-03-01"
 # S3_SECRET_KEY = ""
 # S3_BUCKET = ""
 # S3_REGION = "auto"
-# APP_URL = ""
-# EMAIL_DRIVER = "smtp"
+APP_URL = "https://mycash-preview.page.dev"
+EMAIL_DRIVER = "smtp"
 # EMAIL_SMTP_HOST = ""
 # EMAIL_SMTP_PORT = "2525"
 # EMAIL_SMTP_USER = ""
@@ -23,6 +23,18 @@ compatibility_date = "2025-03-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "mycash"
+database_name = "mycash-dev"
+database_id = "9a113b6b-f8cd-4a8c-9f4b-f8bf340dd832"
+migrations_dir = "../../packages/database/drizzle"
+
+[env.production]
+name = "mycash-api-production"
+
+[env.production.vars]
+APP_URL = "https://mycash.meira.net"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "mycash-prod"
 database_id = "17269bf5-6f44-4e15-bfca-5fcead5fc147"
 migrations_dir = "../../packages/database/drizzle"
