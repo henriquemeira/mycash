@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ListPlus, PlusCircle, Settings, Sun, Moon, Globe } from "lucide-react";
+import { ListPlus, PlusCircle, Settings, Sun, Moon, Globe, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/hooks/useLanguage";
 
 interface BottomNavProps {
   onNewTransaction: () => void;
+  isCurrentMonth: boolean;
+  goToCurrentMonth: () => void;
 }
 
-export function BottomNav({ onNewTransaction }: BottomNavProps) {
+export function BottomNav({ onNewTransaction, isCurrentMonth, goToCurrentMonth }: BottomNavProps) {
   const { t } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
@@ -67,7 +69,18 @@ export function BottomNav({ onNewTransaction }: BottomNavProps) {
                 {t("nav.settings")}
               </button>
 
-              <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+              {!isCurrentMonth && (
+                <>
+                  <button
+                    onClick={() => { goToCurrentMonth(); setShowMenu(false); }}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    <CalendarDays size={16} />
+                    {t("go_to_current_month")}
+                  </button>
+                  <div className="my-1 border-t border-gray-200 dark:border-gray-600" />
+                </>
+              )}
 
               <button
                 onClick={() => { toggleTheme(); setShowMenu(false); }}

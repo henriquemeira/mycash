@@ -15,20 +15,16 @@ import { useToast } from "@/contexts/ToastContext";
 import { Sun, Moon, Globe, Maximize2, Minimize2, Mail, Settings, CalendarDays } from "lucide-react";
 import { api } from "@/lib/api";
 
-function TopBar({ month, year, onMonthChange }: { month: number; year: number; onMonthChange: (m: number, y: number) => void }) {
+function TopBar({ month, year, onMonthChange, isCurrentMonth, goToCurrentMonth }: {
+  month: number; year: number; onMonthChange: (m: number, y: number) => void;
+  isCurrentMonth: boolean; goToCurrentMonth: () => void;
+}) {
   const { theme, toggleTheme } = useTheme();
   const { framed, toggleFramed } = useFrame();
   const { language, setLanguage } = useLanguage();
   const { logout } = useAuth();
   const { showToast } = useToast();
   const { t } = useTranslation();
-
-  const now = new Date();
-  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
-
-  const goToCurrentMonth = () => {
-    onMonthChange(now.getMonth() + 1, now.getFullYear());
-  };
 
   const handleTestEmail = async () => {
     try {
@@ -122,6 +118,13 @@ function Dashboard() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
+  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+
+  const goToCurrentMonth = () => {
+    setMonth(now.getMonth() + 1);
+    setYear(now.getFullYear());
+  };
+
   const handleMonthChange = (m: number, y: number) => {
     setMonth(m);
     setYear(y);
@@ -129,11 +132,11 @@ function Dashboard() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
-      <TopBar month={month} year={year} onMonthChange={handleMonthChange} />
+      <TopBar month={month} year={year} onMonthChange={handleMonthChange} isCurrentMonth={isCurrentMonth} goToCurrentMonth={goToCurrentMonth} />
       <main className="flex-1 pb-16 md:pb-0">
         <TransactionsPage month={month} year={year} onMonthChange={handleMonthChange} />
       </main>
-      <BottomNav onNewTransaction={handleNewTransaction} />
+      <BottomNav onNewTransaction={handleNewTransaction} isCurrentMonth={isCurrentMonth} goToCurrentMonth={goToCurrentMonth} />
     </div>
   );
 }
