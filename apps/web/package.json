@@ -13,11 +13,14 @@
     "@tanstack/react-table": "^8.21.3",
     "i18next": "^26.3.1",
     "lucide-react": "^1.17.0",
+    "papaparse": "^5.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^17.0.8"
+    "react-i18next": "^17.0.8",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",

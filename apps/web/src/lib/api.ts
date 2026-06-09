@@ -117,6 +117,7 @@ export interface CreateTransactionData {
   categoryId: string;
   notes?: string;
   reminderDate?: string;
+  isPaid?: boolean;
   recurrence?: {
     type: RecurrenceType;
     totalInstallments: number;

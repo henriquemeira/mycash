@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ListPlus, PlusCircle, Settings, Sun, Moon, Globe, CalendarDays } from "lucide-react";
+import { ListPlus, PlusCircle, Settings, Sun, Moon, Globe, CalendarDays, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -45,6 +45,14 @@ export function BottomNav({ onNewTransaction, isCurrentMonth, goToCurrentMonth }
         >
           <PlusCircle size={22} />
           <span className="text-[10px] font-medium">{t("nav.new_transaction")}</span>
+        </button>
+
+        <button
+          onClick={() => { window.location.pathname = "/import"; }}
+          className="flex flex-col items-center gap-0.5 text-gray-500 transition-colors hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400"
+        >
+          <Upload size={22} />
+          <span className="text-[10px] font-medium">{t("import.title_upload")}</span>
         </button>
 
         <div className="relative" ref={menuRef}>

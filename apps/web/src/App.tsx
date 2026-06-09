@@ -10,9 +10,10 @@ import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { TransactionsPage } from "@/pages/TransactionsPage";
 import { BottomNav } from "@/components/BottomNav";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { ImportPage } from "@/pages/ImportPage";
 import { useFrame } from "@/contexts/FrameContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Sun, Moon, Globe, Maximize2, Minimize2, Mail, Settings, CalendarDays } from "lucide-react";
+import { Sun, Moon, Globe, Maximize2, Minimize2, Mail, Settings, CalendarDays, Upload } from "lucide-react";
 import { api } from "@/lib/api";
 
 function TopBar({ month, year, onMonthChange, isCurrentMonth, goToCurrentMonth }: {
@@ -78,6 +79,13 @@ function TopBar({ month, year, onMonthChange, isCurrentMonth, goToCurrentMonth }
           title={t("nav.settings")}
         >
           <Settings size={16} />
+        </button>
+        <button
+          onClick={() => { window.location.pathname = "/import"; }}
+          className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          title={t("import.title_upload")}
+        >
+          <Upload size={16} />
         </button>
         <button
           onClick={handleTestEmail}
@@ -159,6 +167,10 @@ function AppContent() {
 
   if (window.location.pathname === "/settings") {
     return user ? <SettingsPage /> : <AuthPage />;
+  }
+
+  if (window.location.pathname === "/import") {
+    return user ? <ImportPage /> : <AuthPage />;
   }
 
   return user ? <Dashboard /> : <AuthPage />;

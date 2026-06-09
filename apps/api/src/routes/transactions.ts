@@ -203,6 +203,7 @@ txRoutes.post("/", async (c) => {
     categoryId: string;
     notes?: string;
     reminderDate?: string;
+    isPaid?: boolean;
     recurrence?: {
       type: "installment" | "recurring";
       totalInstallments: number;
@@ -225,6 +226,7 @@ txRoutes.post("/", async (c) => {
 
   const amount = body.type === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
   const dateValue = body.date || now.toISOString().split("T")[0];
+  const initialIsPaid = body.isPaid === true;
 
   if (body.recurrence && body.recurrence.type === "installment" && body.recurrence.totalInstallments > 1) {
     const totalInstallments = body.recurrence.totalInstallments;
@@ -242,7 +244,7 @@ txRoutes.post("/", async (c) => {
         date: addMonths(dateValue, i - 1),
         dueDate: addMonths(body.dueDate, i - 1),
         type: body.type as "income" | "expense" | "transfer",
-        isPaid: false,
+        isPaid: initialIsPaid,
         recurrenceId: recurrenceGroupId,
         installmentNumber: i,
         totalInstallments,
@@ -262,7 +264,7 @@ txRoutes.post("/", async (c) => {
           date: dateValue,
           dueDate: body.dueDate,
           type: body.type,
-          isPaid: false,
+          isPaid: initialIsPaid,
           accountId: body.accountId,
           categoryId: body.categoryId,
           recurrenceId: encodeId(recurrenceGroupId, salt),
@@ -296,7 +298,7 @@ txRoutes.post("/", async (c) => {
         date: addMonths(dateValue, i - 1),
         dueDate: addMonths(body.dueDate, i - 1),
         type: body.type as "income" | "expense" | "transfer",
-        isPaid: false,
+        isPaid: initialIsPaid,
         recurrenceId: recurrenceGroupId,
         installmentNumber: i,
         totalInstallments,
@@ -316,7 +318,7 @@ txRoutes.post("/", async (c) => {
           date: addMonths(dateValue, 0),
           dueDate: addMonths(body.dueDate, 0),
           type: body.type,
-          isPaid: false,
+          isPaid: initialIsPaid,
           accountId: body.accountId,
           categoryId: body.categoryId,
           recurrenceId: encodeId(recurrenceGroupId, salt),
@@ -345,7 +347,7 @@ txRoutes.post("/", async (c) => {
     date: dateValue,
     dueDate: body.dueDate,
     type: body.type as "income" | "expense" | "transfer",
-    isPaid: false,
+    isPaid: initialIsPaid,
     notes: body.notes || null,
           reminderDate: body.reminderDate || null,
     createdAt: now,
@@ -361,7 +363,7 @@ txRoutes.post("/", async (c) => {
         date: dateValue,
         dueDate: body.dueDate,
         type: body.type,
-        isPaid: false,
+        isPaid: initialIsPaid,
         accountId: body.accountId,
         categoryId: body.categoryId,
         recurrenceId: null,
