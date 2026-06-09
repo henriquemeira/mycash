@@ -16,7 +16,7 @@ import { RecurrenceModal } from "./RecurrenceModal";
 import { AttachmentManager } from "./AttachmentManager";
 import { useToast } from "@/contexts/ToastContext";
 import { parseCliInput } from "@/lib/cliParser";
-import { fuzzyMatchCategory } from "@/lib/fuzzyMatch";
+import { fuzzyMatchCategory, fuzzyMatchAccount } from "@/lib/fuzzyMatch";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -155,6 +155,11 @@ export function TransactionGrid({
     if (!cliPreview?.category) return null;
     return fuzzyMatchCategory(cliPreview.category, categories);
   }, [cliPreview?.category, categories]);
+
+  const cliMatchedAccount = useMemo(() => {
+    if (!cliPreview?.account) return null;
+    return fuzzyMatchAccount(cliPreview.account, accounts);
+  }, [cliPreview?.account, accounts]);
 
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [notes, setNotes] = useState("");
@@ -557,7 +562,10 @@ export function TransactionGrid({
           : null;
         if (!matchedCategory) return;
 
-        const finalAccountId = defaultAccountId || "";
+        const matchedAccount = parsed.account
+          ? fuzzyMatchAccount(parsed.account, accounts)
+          : null;
+        const finalAccountId = matchedAccount?.id || defaultAccountId || "";
         if (!finalAccountId) return;
 
         const finalDate = parsed.date || today;
@@ -746,7 +754,7 @@ export function TransactionGrid({
                     📝 {cliPreview?.description || t("transactions.cli_no_description")}
                   </span>
 
-                  {(cliPreview?.category || cliPreview?.date) && (
+                  {(cliPreview?.category || cliPreview?.account || cliPreview?.date) && (
                     <>
                       <span className="text-slate-400 dark:text-slate-500">|</span>
                       {cliPreview?.category && (
@@ -761,6 +769,20 @@ export function TransactionGrid({
                           {cliMatchedCategory
                             ? `@${cliMatchedCategory.name}`
                             : `${t("transactions.cli_map_to")} ${cliPreview.category}?`}
+                        </span>
+                      )}
+                      {cliPreview?.account && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 font-medium ${
+                            cliMatchedAccount
+                              ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              : "italic text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          🏦{" "}
+                          {cliMatchedAccount
+                            ? `!${cliMatchedAccount.name}`
+                            : `${t("transactions.cli_map_to")} ${cliPreview.account}?`}
                         </span>
                       )}
                       {cliPreview?.date && (
@@ -1436,6 +1458,22 @@ export function TransactionGrid({
               {editFilteredCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {t("transactions.account")}
+            </label>
+            <select
+              value={editAccountId}
+              onChange={(e) => setEditAccountId(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name}
                 </option>
               ))}
             </select>

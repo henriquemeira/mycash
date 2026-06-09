@@ -163,7 +163,7 @@
     "upload_file": "Enviar arquivo",
     "uploading": "Enviando...",
     "attachments": "Anexos",
-    "cli_placeholder": "Descrição... ou /- 15,50 Café @alimentação #hoje",
+    "cli_placeholder": "Descrição... ou /- 15,50 Café @alimentação !nubank #hoje",
     "cli_no_description": "Sem descrição",
     "cli_map_to": "Mapear para:",
     "cli_default_description": "Transação rápida",

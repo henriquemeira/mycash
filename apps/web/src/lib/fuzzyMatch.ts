@@ -15,6 +15,22 @@ export function normalize(str: string): string {
   return removeDiacritics(str).toLowerCase().trim();
 }
 
+export function fuzzyMatchAccount(query: string, accounts: { id: string; name: string }[]): { id: string; name: string } | null {
+  const normalizedQuery = normalize(query);
+  if (!normalizedQuery) return null;
+
+  const exact = accounts.find((a) => normalize(a.name) === normalizedQuery);
+  if (exact) return exact;
+
+  const startsWith = accounts.find((a) => normalize(a.name).startsWith(normalizedQuery));
+  if (startsWith) return startsWith;
+
+  const includes = accounts.find((a) => normalize(a.name).includes(normalizedQuery));
+  if (includes) return includes;
+
+  return null;
+}
+
 export function fuzzyMatchCategory(query: string, categories: { id: string; name: string }[]): { id: string; name: string } | null {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return null;
