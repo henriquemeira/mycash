@@ -1,5 +1,15 @@
 import { Hono } from "hono";
-import { eq, and, gte, lte, isNull, asc, sql, like, inArray } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gte,
+  lte,
+  isNull,
+  asc,
+  sql,
+  like,
+  inArray,
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
   transactions,
@@ -23,7 +33,10 @@ txRoutes.get("/", async (c) => {
   const month = c.req.query("month");
   const year = c.req.query("year");
   const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(c.req.query("limit") || "50", 10) || 50));
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt(c.req.query("limit") || "50", 10) || 50),
+  );
   const offset = (page - 1) * limit;
 
   const searchQuery = c.req.query("search") || "";
@@ -53,17 +66,25 @@ txRoutes.get("/", async (c) => {
     conditions.push(like(transactions.description, `%${searchQuery}%`));
   }
 
-  const decodedAccountId = filterAccountId ? decodeId(filterAccountId, salt) : null;
+  const decodedAccountId = filterAccountId
+    ? decodeId(filterAccountId, salt)
+    : null;
   if (decodedAccountId) {
     conditions.push(eq(transactions.accountId, decodedAccountId));
   }
 
-  const decodedCategoryId = filterCategoryId ? decodeId(filterCategoryId, salt) : null;
+  const decodedCategoryId = filterCategoryId
+    ? decodeId(filterCategoryId, salt)
+    : null;
   if (decodedCategoryId) {
     conditions.push(eq(transactions.categoryId, decodedCategoryId));
   }
 
-  if (filterType === "income" || filterType === "expense" || filterType === "transfer") {
+  if (
+    filterType === "income" ||
+    filterType === "expense" ||
+    filterType === "transfer"
+  ) {
     conditions.push(eq(transactions.type, filterType));
   }
 
@@ -134,13 +155,15 @@ txRoutes.get("/", async (c) => {
             and(
               eq(attachments.status, "confirmed"),
               isNull(attachments.deletedAt),
-              inArray(attachments.transactionId, txIds)
-            )
+              inArray(attachments.transactionId, txIds),
+            ),
           )
           .groupBy(attachments.transactionId)
       : [];
 
-  const attachmentMap = new Map(attachmentCounts.map((r) => [r.transactionId, r.count]));
+  const attachmentMap = new Map(
+    attachmentCounts.map((r) => [r.transactionId, r.count]),
+  );
 
   const items = rows.map((row) => ({
     id: encodeId(row.id, salt),
@@ -210,7 +233,14 @@ txRoutes.post("/", async (c) => {
     };
   }>();
 
-  if (!body.description || !body.amount || !body.dueDate || !body.type || !body.accountId || !body.categoryId) {
+  if (
+    !body.description ||
+    !body.amount ||
+    !body.dueDate ||
+    !body.type ||
+    !body.accountId ||
+    !body.categoryId
+  ) {
     return c.json({ error: "errors.missing_fields" }, 400);
   }
 
@@ -224,11 +254,16 @@ txRoutes.post("/", async (c) => {
   const db = drizzle(c.env.DB);
   const now = new Date();
 
-  const amount = body.type === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
+  const amount =
+    body.type === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
   const dateValue = body.date || now.toISOString().split("T")[0];
   const initialIsPaid = body.isPaid === true;
 
-  if (body.recurrence && body.recurrence.type === "installment" && body.recurrence.totalInstallments > 1) {
+  if (
+    body.recurrence &&
+    body.recurrence.type === "installment" &&
+    body.recurrence.totalInstallments > 1
+  ) {
     const totalInstallments = body.recurrence.totalInstallments;
     const recurrenceGroupId = newId();
     const firstId = newId();
@@ -249,7 +284,9 @@ txRoutes.post("/", async (c) => {
         installmentNumber: i,
         totalInstallments,
         notes: body.notes || null,
-        reminderDate: body.reminderDate ? addMonths(body.reminderDate, i - 1) : null,
+        reminderDate: body.reminderDate
+          ? addMonths(body.reminderDate, i - 1)
+          : null,
         createdAt: now,
         updatedAt: now,
       });
@@ -278,7 +315,7 @@ txRoutes.post("/", async (c) => {
         },
         createdCount: totalInstallments,
       },
-      201
+      201,
     );
   }
 
@@ -303,7 +340,9 @@ txRoutes.post("/", async (c) => {
         installmentNumber: i,
         totalInstallments,
         notes: body.notes || null,
-        reminderDate: body.reminderDate ? addMonths(body.reminderDate, i - 1) : null,
+        reminderDate: body.reminderDate
+          ? addMonths(body.reminderDate, i - 1)
+          : null,
         createdAt: now,
         updatedAt: now,
       });
@@ -332,7 +371,7 @@ txRoutes.post("/", async (c) => {
         },
         createdCount: totalInstallments,
       },
-      201
+      201,
     );
   }
 
@@ -349,7 +388,7 @@ txRoutes.post("/", async (c) => {
     type: body.type as "income" | "expense" | "transfer",
     isPaid: initialIsPaid,
     notes: body.notes || null,
-          reminderDate: body.reminderDate || null,
+    reminderDate: body.reminderDate || null,
     createdAt: now,
     updatedAt: now,
   });
@@ -370,14 +409,14 @@ txRoutes.post("/", async (c) => {
         installmentNumber: null,
         totalInstallments: null,
         notes: body.notes || null,
-          reminderDate: body.reminderDate || null,
+        reminderDate: body.reminderDate || null,
         accountName: "",
         categoryName: "",
         categoryColor: "",
       },
       createdCount: 1,
     },
-    201
+    201,
   );
 });
 
@@ -413,8 +452,8 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
       and(
         eq(transactions.id, decodedId),
         eq(transactions.userId, userId),
-        isNull(transactions.deletedAt)
-      )
+        isNull(transactions.deletedAt),
+      ),
     )
     .get();
 
@@ -423,10 +462,17 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
   }
 
   const now = new Date();
-  const decodedAccountId = body.accountId ? decodeId(body.accountId, salt) : tx.accountId;
-  const decodedCategoryId = body.categoryId ? decodeId(body.categoryId, salt) : tx.categoryId;
+  const decodedAccountId = body.accountId
+    ? decodeId(body.accountId, salt)
+    : tx.accountId;
+  const decodedCategoryId = body.categoryId
+    ? decodeId(body.categoryId, salt)
+    : tx.categoryId;
 
-  if ((body.accountId && !decodedAccountId) || (body.categoryId && !decodedCategoryId)) {
+  if (
+    (body.accountId && !decodedAccountId) ||
+    (body.categoryId && !decodedCategoryId)
+  ) {
     return c.json({ error: "errors.invalid_id" }, 400);
   }
 
@@ -444,20 +490,23 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
     const updateData: Record<string, unknown> = {
       updatedAt: now,
     };
-    if (body.description !== undefined) updateData.description = body.description;
+    if (body.description !== undefined)
+      updateData.description = body.description;
     if (body.amount !== undefined) {
-      updateData.amount = body.type === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
+      updateData.amount =
+        body.type === "expense"
+          ? -Math.abs(body.amount)
+          : Math.abs(body.amount);
     } else if (body.type !== undefined) {
-      updateData.amount = body.type === "expense"
-        ? -Math.abs(tx.amount)
-        : Math.abs(tx.amount);
+      updateData.amount =
+        body.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
     }
     if (body.type !== undefined) updateData.type = body.type;
     if (body.date !== undefined) updateData.date = body.date;
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate;
-if (body.notes !== undefined) updateData.notes = body.notes;
-  if (body.reminderDate !== undefined) updateData.reminderDate = body.reminderDate;
-    if (body.reminderDate !== undefined) updateData.reminderDate = body.reminderDate;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.reminderDate !== undefined)
+      updateData.reminderDate = body.reminderDate;
     if (decodedAccountId) updateData.accountId = decodedAccountId;
     if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
     if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
@@ -478,7 +527,10 @@ if (body.notes !== undefined) updateData.notes = body.notes;
   };
   if (body.description !== undefined) updateData.description = body.description;
   if (body.amount !== undefined) {
-    updateData.amount = (body.type || tx.type) === "expense" ? -Math.abs(body.amount) : Math.abs(body.amount);
+    updateData.amount =
+      (body.type || tx.type) === "expense"
+        ? -Math.abs(body.amount)
+        : Math.abs(body.amount);
   }
   if (body.type !== undefined) updateData.type = body.type;
   if (body.date !== undefined) updateData.date = body.date;
@@ -487,7 +539,8 @@ if (body.notes !== undefined) updateData.notes = body.notes;
   if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
   if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
   if (body.notes !== undefined) updateData.notes = body.notes;
-  if (body.reminderDate !== undefined) updateData.reminderDate = body.reminderDate;
+  if (body.reminderDate !== undefined)
+    updateData.reminderDate = body.reminderDate;
 
   if (tx.recurrenceId && scope === "single") {
     updateData.recurrenceId = null;
@@ -525,8 +578,8 @@ txRoutes.delete("/:id", hashidMiddleware, async (c) => {
       and(
         eq(transactions.id, decodedId),
         eq(transactions.userId, userId),
-        isNull(transactions.deletedAt)
-      )
+        isNull(transactions.deletedAt),
+      ),
     )
     .get();
 
@@ -546,8 +599,8 @@ txRoutes.delete("/:id", hashidMiddleware, async (c) => {
           eq(transactions.recurrenceId, tx.recurrenceId),
           eq(transactions.userId, userId),
           gte(transactions.dueDate, effectiveDueDate),
-          isNull(transactions.deletedAt)
-        )
+          isNull(transactions.deletedAt),
+        ),
       );
 
     return c.json({ deletedCount: "bulk", scope: "future" });
@@ -579,8 +632,8 @@ txRoutes.patch("/:id/toggle-paid", hashidMiddleware, async (c) => {
       and(
         eq(transactions.id, txId),
         eq(transactions.userId, userId),
-        isNull(transactions.deletedAt)
-      )
+        isNull(transactions.deletedAt),
+      ),
     )
     .get();
 
