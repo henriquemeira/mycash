@@ -6,6 +6,7 @@ import transactions from "./routes/transactions";
 import accounts from "./routes/accounts";
 import categories from "./routes/categories";
 import attachments from "./routes/attachments";
+import { processReminders } from "./reminders";
 import type { Env } from "./env";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -33,4 +34,13 @@ app.route("/accounts", accounts);
 app.route("/categories", categories);
 app.route("/attachments", attachments);
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(
+    _event: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(processReminders(env));
+  },
+};

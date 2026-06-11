@@ -129,5 +129,26 @@ export const transactions = sqliteTable(
       table.deletedAt
     ),
     index("transactions_recurrence_idx").on(table.recurrenceId),
+    index("transactions_reminder_idx").on(table.reminderDate, table.deletedAt),
+  ]
+);
+
+export const reminderNotifications = sqliteTable(
+  "reminder_notifications",
+  {
+    id: text("id").primaryKey(),
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sentAt: integer("sent_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("reminder_notifications_tx_idx").on(table.transactionId),
+    index("reminder_notifications_user_idx").on(table.userId),
   ]
 );

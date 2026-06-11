@@ -22,3 +22,12 @@ export interface EmailConfig {
   fromAddress: string;
   fromName: string;
 }
+
+export interface ReminderEmailParams {
+  description: string;
+  amount: number;
+  type: "income" | "expense" | "transfer";
+  date: string;
+  accountName: string;
+  appUrl: string;
+}

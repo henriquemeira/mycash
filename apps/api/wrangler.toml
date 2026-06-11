@@ -29,6 +29,9 @@ database_name = "mycash-dev"
 database_id = "9a113b6b-f8cd-4a8c-9f4b-f8bf340dd832"
 migrations_dir = "../../packages/database/drizzle"
 
+[triggers]
+crons = ["0 11 * * *"]
+
 [env.production]
 name = "mycash-api"
 
@@ -42,3 +45,6 @@ binding = "DB"
 database_name = "mycash-prod"
 database_id = "17269bf5-6f44-4e15-bfca-5fcead5fc147"
 migrations_dir = "../../packages/database/drizzle"
+
+[env.production.triggers]
+crons = ["0 11 * * *"]
