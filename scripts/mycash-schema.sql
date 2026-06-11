@@ -70,6 +70,14 @@ CREATE TABLE `attachments` (
 	FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
+CREATE TABLE `reminder_notifications` (
+	`id` text PRIMARY KEY NOT NULL,
+	`transaction_id` text NOT NULL,
+	`user_id` text NOT NULL,
+	`sent_at` integer NOT NULL,
+	FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
 DELETE FROM sqlite_sequence;
 CREATE INDEX `accounts_user_idx` ON `accounts` (`user_id`,`deleted_at`);
 CREATE INDEX `categories_user_idx` ON `categories` (`user_id`,`type`);
@@ -79,3 +87,6 @@ CREATE INDEX `transactions_user_date_idx` ON `transactions` (`user_id`,`date`,`d
 CREATE INDEX `transactions_recurrence_idx` ON `transactions` (`recurrence_id`);
 CREATE INDEX `attachments_transaction_idx` ON `attachments` (`transaction_id`,`deleted_at`);
 CREATE INDEX `attachments_user_idx` ON `attachments` (`user_id`);
+CREATE INDEX `reminder_notifications_tx_idx` ON `reminder_notifications` (`transaction_id`);
+CREATE INDEX `reminder_notifications_user_idx` ON `reminder_notifications` (`user_id`);
+CREATE INDEX `transactions_reminder_idx` ON `transactions` (`reminder_date`,`deleted_at`);
