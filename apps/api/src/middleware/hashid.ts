@@ -10,7 +10,7 @@ function isIdField(key: string): boolean {
 }
 
 export type HashidVariables = {
-  decodedId: string;
+  decodedId: bigint;
 };
 
 export const hashidMiddleware = createMiddleware<{
@@ -41,7 +41,7 @@ export function encodeResponseIds(data: unknown, salt: string): unknown {
   if (typeof data === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-      if (isIdField(key) && typeof value === "string") {
+      if (isIdField(key) && typeof value === "bigint") {
         result[key] = encodeId(value, salt);
       } else {
         result[key] = encodeResponseIds(value, salt);

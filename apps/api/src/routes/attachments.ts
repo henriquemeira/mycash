@@ -28,7 +28,7 @@ attachRoutes.post("/:transactionId/upload", async (c) => {
 
     const decodedTxId = decodeId(transactionId, salt);
 
-    if (!decodedTxId) {
+    if (decodedTxId === null) {
       return c.json({ error: "errors.invalid_id" }, 400);
     }
 
@@ -57,7 +57,7 @@ attachRoutes.post("/:transactionId/upload", async (c) => {
       return c.json({ error: validationError }, 400);
     }
 
-    const fileKey = buildFileKey(userId, file.name);
+    const fileKey = buildFileKey(userId.toString(), file.name);
     const id = newId();
 
     await db.insert(attachments).values({
@@ -161,7 +161,7 @@ attachRoutes.get("/list/:transactionId", async (c) => {
 
   const decodedTxId = decodeId(transactionId, salt);
 
-  if (!decodedTxId) {
+  if (decodedTxId === null) {
     return c.json({ error: "errors.invalid_id" }, 400);
   }
 

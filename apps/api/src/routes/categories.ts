@@ -67,7 +67,7 @@ categoryRoutes.put("/:id", async (c) => {
   const salt = c.env.HASHIDS_SALT;
   const hash = c.req.param("id");
   const decoded = decodeId(hash, salt);
-  if (!decoded) return c.json({ error: "errors.invalid_id" }, 400);
+  if (decoded === null) return c.json({ error: "errors.invalid_id" }, 400);
 
   const body = await c.req.json();
   const now = new Date();
@@ -99,7 +99,7 @@ categoryRoutes.delete("/:id", async (c) => {
   const salt = c.env.HASHIDS_SALT;
   const hash = c.req.param("id");
   const decoded = decodeId(hash, salt);
-  if (!decoded) return c.json({ error: "errors.invalid_id" }, 400);
+  if (decoded === null) return c.json({ error: "errors.invalid_id" }, 400);
 
   const now = new Date();
   await db

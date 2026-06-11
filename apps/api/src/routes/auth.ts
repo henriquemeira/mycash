@@ -116,7 +116,7 @@ auth.post("/register", async (c) => {
   ]);
 
   const token = await signJwt(
-    { sub: userId, email: normalizedEmail },
+    { sub: userId.toString(), email: normalizedEmail },
     c.env.JWT_SECRET
   );
 
@@ -188,7 +188,7 @@ auth.post("/login", async (c) => {
     .where(eq(users.id, user.id));
 
   const token = await signJwt(
-    { sub: user.id, email: user.email },
+    { sub: user.id.toString(), email: user.email },
     c.env.JWT_SECRET
   );
 
@@ -261,7 +261,7 @@ auth.post("/forgot-password", async (c) => {
   }
 
   const resetToken = await signResetToken(
-    { sub: user.id, email: user.email },
+    { sub: user.id.toString(), email: user.email },
     c.env.JWT_SECRET
   );
 
@@ -298,11 +298,12 @@ auth.post("/reset-password", async (c) => {
   }
 
   const db = drizzle(c.env.DB);
+  const userId = BigInt(payload.sub);
 
   const user = await db
     .select()
     .from(users)
-    .where(eq(users.id, payload.sub))
+    .where(eq(users.id, userId))
     .get();
 
   if (!user || user.deletedAt !== null) {
@@ -315,7 +316,7 @@ auth.post("/reset-password", async (c) => {
   await db
     .update(users)
     .set({ passwordHash, updatedAt: now })
-    .where(eq(users.id, user.id));
+    .where(eq(users.id, userId));
 
   return c.json({ success: true, message: "auth.password_reset_success" });
 });

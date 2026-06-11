@@ -1,1 +1,0 @@
-ALTER TABLE `transactions` ADD `reminder_date` text;

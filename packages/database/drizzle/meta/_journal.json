@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1780793517023,
-      "tag": "0000_odd_network",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1780829487305,
-      "tag": "0001_overrated_tempest",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1780836084767,
-      "tag": "0002_steep_microchip",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1780865049073,
-      "tag": "0003_clever_miracleman",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1780866663076,
-      "tag": "0004_acoustic_beast",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1780870048900,
-      "tag": "0005_great_maelstrom",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1781181790491,
-      "tag": "0006_deep_ezekiel_stane",
+      "when": 1781188546843,
+      "tag": "0000_kind_richard_fisk",
       "breakpoints": true
     }
   ]

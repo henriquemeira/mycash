@@ -69,14 +69,14 @@ txRoutes.get("/", async (c) => {
   const decodedAccountId = filterAccountId
     ? decodeId(filterAccountId, salt)
     : null;
-  if (decodedAccountId) {
+  if (decodedAccountId !== null) {
     conditions.push(eq(transactions.accountId, decodedAccountId));
   }
 
   const decodedCategoryId = filterCategoryId
     ? decodeId(filterCategoryId, salt)
     : null;
-  if (decodedCategoryId) {
+  if (decodedCategoryId !== null) {
     conditions.push(eq(transactions.categoryId, decodedCategoryId));
   }
 
@@ -175,7 +175,7 @@ txRoutes.get("/", async (c) => {
     isPaid: row.isPaid,
     accountId: encodeId(row.accountId, salt),
     categoryId: encodeId(row.categoryId, salt),
-    recurrenceId: row.recurrenceId ? encodeId(row.recurrenceId, salt) : null,
+    recurrenceId: row.recurrenceId !== null ? encodeId(row.recurrenceId!, salt) : null,
     installmentNumber: row.installmentNumber,
     totalInstallments: row.totalInstallments,
     notes: row.notes,
@@ -247,7 +247,7 @@ txRoutes.post("/", async (c) => {
   const decodedAccountId = decodeId(body.accountId, salt);
   const decodedCategoryId = decodeId(body.categoryId, salt);
 
-  if (!decodedAccountId || !decodedCategoryId) {
+  if (decodedAccountId === null || decodedCategoryId === null) {
     return c.json({ error: "errors.invalid_id" }, 400);
   }
 
@@ -470,8 +470,8 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
     : tx.categoryId;
 
   if (
-    (body.accountId && !decodedAccountId) ||
-    (body.categoryId && !decodedCategoryId)
+    (body.accountId && decodedAccountId === null) ||
+    (body.categoryId && decodedCategoryId === null)
   ) {
     return c.json({ error: "errors.invalid_id" }, 400);
   }
@@ -507,8 +507,8 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
     if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.reminderDate !== undefined)
       updateData.reminderDate = body.reminderDate;
-    if (decodedAccountId) updateData.accountId = decodedAccountId;
-    if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
+    if (decodedAccountId !== null) updateData.accountId = decodedAccountId;
+    if (decodedCategoryId !== null) updateData.categoryId = decodedCategoryId;
     if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
 
     await db
@@ -535,8 +535,8 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
   if (body.type !== undefined) updateData.type = body.type;
   if (body.date !== undefined) updateData.date = body.date;
   if (body.dueDate !== undefined) updateData.dueDate = body.dueDate;
-  if (decodedAccountId) updateData.accountId = decodedAccountId;
-  if (decodedCategoryId) updateData.categoryId = decodedCategoryId;
+  if (decodedAccountId !== null) updateData.accountId = decodedAccountId;
+  if (decodedCategoryId !== null) updateData.categoryId = decodedCategoryId;
   if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
   if (body.notes !== undefined) updateData.notes = body.notes;
   if (body.reminderDate !== undefined)

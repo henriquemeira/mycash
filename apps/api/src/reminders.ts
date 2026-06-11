@@ -15,7 +15,7 @@ export interface ReminderResult {
   sent: number;
   skipped: number;
   failed: number;
-  errors: Array<{ transactionId: string; error: string }>;
+  errors: Array<{ transactionId: bigint; error: string }>;
 }
 
 export async function processReminders(env: Env): Promise<ReminderResult> {
@@ -82,7 +82,7 @@ export async function processReminders(env: Env): Promise<ReminderResult> {
   const userById = new Map(userRows.map((u) => [u.id, u.email]));
   const accountById = new Map(accountRows.map((a) => [a.id, a.name]));
 
-  const missingUserIds = new Set<string>();
+  const missingUserIds = new Set<bigint>();
   const emailService = createEmailService(env);
 
   for (const row of pending) {

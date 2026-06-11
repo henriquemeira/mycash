@@ -1,13 +1,25 @@
-import { sqliteTable, integer, text, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, index, customType } from "drizzle-orm/sqlite-core";
+
+const bigintInteger = customType<{ data: bigint; driverData: string }>({
+  dataType() {
+    return "integer";
+  },
+  toDriver(value: bigint): string {
+    return value.toString();
+  },
+  fromDriver(value: string): bigint {
+    return BigInt(value);
+  },
+});
 
 export const attachments = sqliteTable(
   "attachments",
   {
-    id: text("id").primaryKey(),
-    transactionId: text("transaction_id")
+    id: bigintInteger("id").primaryKey(),
+    transactionId: bigintInteger("transaction_id")
       .notNull()
       .references(() => transactions.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+    userId: bigintInteger("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     fileName: text("file_name").notNull(),
@@ -29,7 +41,7 @@ export const attachments = sqliteTable(
 export const users = sqliteTable(
   "users",
   {
-    id: text("id").primaryKey(),
+    id: bigintInteger("id").primaryKey(),
     email: text("email").unique().notNull(),
     passwordHash: text("password_hash").notNull(),
     status: text("status").default("active").notNull(),
@@ -48,8 +60,8 @@ export const users = sqliteTable(
 export const accounts = sqliteTable(
   "accounts",
   {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
+    id: bigintInteger("id").primaryKey(),
+    userId: bigintInteger("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -71,8 +83,8 @@ export const accounts = sqliteTable(
 export const categories = sqliteTable(
   "categories",
   {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
+    id: bigintInteger("id").primaryKey(),
+    userId: bigintInteger("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -93,14 +105,14 @@ export const categories = sqliteTable(
 export const transactions = sqliteTable(
   "transactions",
   {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
+    id: bigintInteger("id").primaryKey(),
+    userId: bigintInteger("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    accountId: text("account_id")
+    accountId: bigintInteger("account_id")
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
-    categoryId: text("category_id")
+    categoryId: bigintInteger("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "cascade" }),
     description: text("description").notNull(),
@@ -109,7 +121,7 @@ export const transactions = sqliteTable(
     dueDate: text("due_date"),
     type: text("type", { enum: ["income", "expense", "transfer"] }).notNull(),
     isPaid: integer("is_paid", { mode: "boolean" }).default(false).notNull(),
-    recurrenceId: text("recurrence_id"),
+    recurrenceId: bigintInteger("recurrence_id"),
     installmentNumber: integer("installment_number"),
     totalInstallments: integer("total_installments"),
     notes: text("notes"),
@@ -136,11 +148,11 @@ export const transactions = sqliteTable(
 export const reminderNotifications = sqliteTable(
   "reminder_notifications",
   {
-    id: text("id").primaryKey(),
-    transactionId: text("transaction_id")
+    id: bigintInteger("id").primaryKey(),
+    transactionId: bigintInteger("transaction_id")
       .notNull()
       .references(() => transactions.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+    userId: bigintInteger("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     sentAt: integer("sent_at", { mode: "timestamp" })

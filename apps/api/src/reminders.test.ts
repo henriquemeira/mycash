@@ -9,7 +9,7 @@ const {
   insertResultOverride,
 } = vi.hoisted(() => {
   const queryQueue: Array<{ resolve: any[] }> = [];
-  let nextId = 1;
+  let nextId = 1n;
   const calls: Array<{ method: string; table?: string }> = [];
   let insertResultOverride: { meta: { changes: number; last_row_id: number } } | null =
     null;
@@ -34,7 +34,7 @@ const {
         calls.push({ method: "onConflictDoNothing" });
         const override = insertResultOverride;
         const result = override ?? {
-          meta: { changes: 1, last_row_id: nextId },
+          meta: { changes: 1, last_row_id: Number(nextId) },
         };
         insertResultOverride = null;
         return Promise.resolve(result);
@@ -92,8 +92,8 @@ vi.mock("@mycash/email", () => ({
 
 vi.mock("./utils/id", () => ({
   newId: vi.fn(() => {
-    const id = String(nextIdRef.value);
-    nextIdRef.value += 1;
+    const id = nextIdRef.value;
+    nextIdRef.value += 1n;
     return id;
   }),
 }));
@@ -125,7 +125,7 @@ beforeEach(() => {
   mockEmailSend.mockClear();
   mockDb.insert.mockClear();
   queryQueue.length = 0;
-  nextIdRef.value = 1;
+  nextIdRef.value = 1n;
   insertResultOverride.value = null;
 });
 
@@ -149,17 +149,17 @@ describe("processReminders", () => {
   it("envia email e registra notificação para transação com reminderDate <= hoje", async () => {
     setUpResult([
       {
-        txId: "tx-1",
-        txUserId: "user-1",
+        txId: 1n,
+        txUserId: 10n,
         txDescription: "Conta de luz",
         txAmount: 15990,
         txDate: "2026-06-15",
         txType: "expense",
-        accountId: "acc-1",
+        accountId: 100n,
       },
     ]);
-    setUpResult([{ id: "user-1", email: "user@example.com" }]);
-    setUpResult([{ id: "acc-1", name: "Conta Corrente" }]);
+    setUpResult([{ id: 10n, email: "user@example.com" }]);
+    setUpResult([{ id: 100n, name: "Conta Corrente" }]);
 
     const result = await processReminders(baseEnv);
 
@@ -180,13 +180,13 @@ describe("processReminders", () => {
   it("marca como skipped quando o usuário não é encontrado", async () => {
     setUpResult([
       {
-        txId: "tx-1",
-        txUserId: "user-missing",
+        txId: 1n,
+        txUserId: 999n,
         txDescription: "X",
         txAmount: 100,
         txDate: "2026-06-15",
         txType: "expense",
-        accountId: "acc-1",
+        accountId: 100n,
       },
     ]);
     setUpResult([]);
@@ -196,8 +196,8 @@ describe("processReminders", () => {
     expect(result.sent).toBe(0);
     expect(result.skipped).toBe(1);
     expect(result.errors[0]).toMatchObject({
-      transactionId: "tx-1",
-      error: "user_not_found:user-missing",
+      transactionId: 1n,
+      error: "user_not_found:999",
     });
     expect(mockEmailSend).not.toHaveBeenCalled();
     expect(mockDb.insert).not.toHaveBeenCalled();
@@ -206,22 +206,22 @@ describe("processReminders", () => {
   it("registra apenas um erro quando múltiplas transações do mesmo usuário não existem", async () => {
     setUpResult([
       {
-        txId: "tx-1",
-        txUserId: "user-missing",
+        txId: 1n,
+        txUserId: 999n,
         txDescription: "X",
         txAmount: 100,
         txDate: "2026-06-15",
         txType: "expense",
-        accountId: "acc-1",
+        accountId: 100n,
       },
       {
-        txId: "tx-2",
-        txUserId: "user-missing",
+        txId: 2n,
+        txUserId: 999n,
         txDescription: "Y",
         txAmount: 200,
         txDate: "2026-06-16",
         txType: "expense",
-        accountId: "acc-1",
+        accountId: 100n,
       },
     ]);
     setUpResult([]);
@@ -231,24 +231,24 @@ describe("processReminders", () => {
     expect(result.skipped).toBe(2);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toMatchObject({
-      error: "user_not_found:user-missing",
+      error: "user_not_found:999",
     });
   });
 
   it("incrementa failed quando o envio de email falha", async () => {
     setUpResult([
       {
-        txId: "tx-1",
-        txUserId: "user-1",
+        txId: 1n,
+        txUserId: 10n,
         txDescription: "X",
         txAmount: 100,
         txDate: "2026-06-15",
         txType: "expense",
-        accountId: "acc-1",
+        accountId: 100n,
       },
     ]);
-    setUpResult([{ id: "user-1", email: "user@example.com" }]);
-    setUpResult([{ id: "acc-1", name: "Conta" }]);
+    setUpResult([{ id: 10n, email: "user@example.com" }]);
+    setUpResult([{ id: 100n, name: "Conta" }]);
 
     mockEmailSend.mockRejectedValueOnce(new Error("SMTP down"));
 
@@ -257,7 +257,7 @@ describe("processReminders", () => {
     expect(result.sent).toBe(0);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toMatchObject({
-      transactionId: "tx-1",
+      transactionId: 1n,
       error: "SMTP down",
     });
   });
@@ -265,17 +265,17 @@ describe("processReminders", () => {
   it("pula envio quando INSERT falha por conflito (transação já notificada por outra execução)", async () => {
     setUpResult([
       {
-        txId: "tx-1",
-        txUserId: "user-1",
+        txId: 1n,
+        txUserId: 10n,
         txDescription: "X",
         txAmount: 100,
         txDate: "2026-06-15",
         txType: "expense",
-        accountId: "acc-1",
+        accountId: 100n,
       },
     ]);
-    setUpResult([{ id: "user-1", email: "user@example.com" }]);
-    setUpResult([{ id: "acc-1", name: "Conta" }]);
+    setUpResult([{ id: 10n, email: "user@example.com" }]);
+    setUpResult([{ id: 100n, name: "Conta" }]);
 
     insertResultOverride.value = { meta: { changes: 0, last_row_id: 0 } };
 

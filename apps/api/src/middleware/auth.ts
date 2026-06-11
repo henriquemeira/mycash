@@ -5,7 +5,7 @@ import type { Env } from "../env";
 
 export type AuthEnv = {
   Variables: {
-    userId: string;
+    userId: bigint;
     userEmail: string;
   };
   Bindings: Env;
@@ -24,7 +24,7 @@ export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
     return c.json({ error: "errors.token_invalid" }, 401);
   }
 
-  c.set("userId", payload.sub);
+  c.set("userId", BigInt(payload.sub));
   c.set("userEmail", payload.email);
 
   await next();
