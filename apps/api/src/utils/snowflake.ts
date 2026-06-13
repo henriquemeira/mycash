@@ -1,29 +1,25 @@
-const EPOCH = 1704067200000n;
-let sequence = 0n;
-let lastTimestamp = 0n;
-const workerId = 1n;
-const datacenterId = 1n;
+const EPOCH = Date.UTC(2026, 0, 1);
+const MAX_SEQUENCE = 0x7ff;
+let sequence = 0;
+let lastTimestamp = 0;
 
 export function generateSnowflakeId(): bigint {
-  let timestamp = BigInt(Date.now()) - EPOCH;
+  const now = Date.now();
+  const timestamp = now - EPOCH;
 
-  if (timestamp === lastTimestamp) {
-    sequence = (sequence + 1n) & 4095n;
-    if (sequence === 0n) {
-      while (timestamp <= lastTimestamp) {
-        timestamp = BigInt(Date.now()) - EPOCH;
+  if (timestamp !== lastTimestamp) {
+    sequence = 0;
+    lastTimestamp = timestamp;
+  } else {
+    sequence = (sequence + 1) & MAX_SEQUENCE;
+    if (sequence === 0) {
+      while (Date.now() - EPOCH <= lastTimestamp) {
+        // spin until next millisecond
       }
     }
-  } else {
-    sequence = 0n;
   }
 
   lastTimestamp = timestamp;
 
-  return (
-    (timestamp << 22n) |
-    (datacenterId << 17n) |
-    (workerId << 12n) |
-    sequence
-  );
+  return (BigInt(timestamp) << 11n) | BigInt(sequence);
 }

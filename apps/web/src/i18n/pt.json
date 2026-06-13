@@ -3,7 +3,8 @@
     "title": "MyCash",
     "loading": "Carregando...",
     "logout": "Sair",
-    "welcome": "Bem-vindo"
+    "welcome": "Bem-vindo",
+    "retry": "Tentar novamente"
   },
   "auth": {
     "login": "Entrar",
@@ -47,6 +48,7 @@
     "transaction_not_found": "Transação não encontrada",
     "missing_fields": "Preencha todos os campos obrigatórios",
     "save_failed_retry": "Não foi possível salvar. Tentando novamente...",
+    "load_failed": "Falha ao carregar dados: {{message}}",
     "attachment_too_large": "Arquivo excede o limite de 5MB.",
     "attachment_invalid_type": "Tipo de arquivo não permitido.",
     "attachment_blocked_type": "Tipo de arquivo bloqueado.",
@@ -158,6 +160,7 @@
     "all_accounts": "Todas as contas",
     "all_categories": "Todas as categorias",
     "clear_filters": "Limpar filtros",
+    "clear_search": "Limpar pesquisa",
     "export_csv": "Exportar CSV",
     "attach_file": "Anexar arquivo",
     "upload_file": "Enviar arquivo",

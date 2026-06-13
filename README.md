@@ -8,31 +8,67 @@ Sistema de controle financeiro pessoal leve, rápido e focado em edição inline
 
 Aplicação de finanças pessoais desenhada sob a filosofia **Plug-and-Play** com infraestrutura descentralizada na borda (*Edge Computing*), minimizando dependência de serviços externos pagos. Implantável na camada gratuita da Cloudflare ou em servidor doméstico. **Em produção desde Junho/2026.**
 
-## Features
+## Funcionalidades
 
-### Lançamentos e Produtividade
-- Autenticação nativa com WebCrypto API (PBKDF2)
-- Onboarding automatizado (conta "CAIXA" + categorias padrão)
-- Smart CLI: linha de comando financeira inteligente (`/-` e `/+`) com interpretação de tags (`@`, `#`) e preview de saldo
-- Edição inline via TanStack Table com suporte a parcelamento e recorrência mensal
-- Filtros avançados (busca textual, conta, categoria, tipo)
+### Autenticação e Usuários
+- Registro e login com WebCrypto API (PBKDF2 para hash de senhas)
+- Recuperação de senha via e-mail
+- Perfil do usuário com gerenciamento de sessão
+
+### Gestão de Contas
+- CRUD completo de contas bancárias
+- Tipos de conta: checking, savings, credit, investment
+- Saldo inicial configurável por conta
+- Cores customizadas para visualização
+- Soft delete para preservação de histórico
+
+### Gestão de Categorias
+- CRUD de categorias customizadas
+- Ícones e cores personalizáveis
+- Separação por tipo (income/expense)
+- Onboarding automatizado com categorias padrão
+
+### Transações e Lançamentos
+- CRUD completo de transações
+- smart CLI: linha de comando financeira inteligente (`/-` e `/+`) com interpretação de tags (`@`, `#`) e preview de saldo
+- Edição inline via TanStack Table
+- Parcelamento: suporte a múltiplas parcelas com controle de número total
+- Recorrência mensal automática via motor de lembretes
+- Transferências entre contas
+- Toggle de pagamento (isPaid)
+- Filtros avançados: busca textual, conta, categoria, tipo, mês/ano
+- Paginação com cursor
 - Exportação CSV client-side
 
 ### Gestão Financeira
-- CRUD completo de contas e categorias com soft delete e cores customizadas
-- Saldo consolidado por conta com agregação SQL (D1) — apenas transações pagas e não deletadas
-- Dropdown de Patrimônio Líquido Total no cabeçalho com lazy loading e visão por conta
+- Saldo consolidado por conta (apenas transações pagas e não deletadas)
+- Patrimônio Líquido Total no cabeçalho com dropdown
+- Visão por conta com lazy loading
+
+### Comprovantes e Anexos
+- Upload de comprovantes via URLs pré-assinadas (R2/MinIO)
+- Sistema de status: pending/confirmed
+- Storage S3-compatible
+- Associação por transação
+
+### Lembretes e Notificações
+- Sistema de lembretes automáticos por transação
+- E-mails assíncronos via `waitUntil`
+- Motor de e-mail agnóstico: SMTP, SendGrid ou Mailersend
+- Log de notificações enviadas
+
+### Importação
+- Importação de extratos via CSV/XLSX
+- Wizard de mapeamento de colunas
+- Revisão antes da importação
 
 ### Infraestrutura e Segurança
 - API RESTful com Hono.js no Cloudflare Workers
 - Banco de dados Cloudflare D1 (SQLite na borda)
-- Storage S3-compatible (Cloudflare R2 ou MinIO)
-- Upload de comprovantes via URLs pré-assinadas
 - IDs ofuscados via SnowflakeID + Hashids (proteção IDOR)
 - Soft delete para preservação de histórico
-- Motor de e-mail agnóstico (SMTP / SendGrid / Mailersend) com envio assíncrono via `waitUntil`
-- Recuperação de senha e testes de e-mail integrados
-- Proteção anti-bot com **Cloudflare Turnstile** (ativada apenas em produção; desativada em localhost)
+- Proteção anti-bot com **Cloudflare Turnstile** (produção only)
+- Middleware de autenticação com JWT
 
 ## Stack Tecnológica
 

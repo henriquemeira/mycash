@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import { MonthSelector } from "@/components/MonthSelector";
 import { BalanceRibbon } from "@/components/BalanceRibbon";
+import { QuickAddBar } from "@/components/QuickAddBar";
 import { TransactionGrid } from "@/components/TransactionGrid";
 import { TransactionToolbar } from "@/components/TransactionToolbar";
 import { useToast } from "@/contexts/ToastContext";
@@ -32,6 +33,7 @@ export function TransactionsPage({ month, year, onMonthChange }: { month: number
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -40,20 +42,29 @@ export function TransactionsPage({ month, year, onMonthChange }: { month: number
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     setPage(1);
-    const [txRes, accRes, catRes] = await Promise.all([
-      api.getTransactions(month, year, 1, 50, filters),
-      api.getAccounts(),
-      api.getCategories(),
-    ]);
-    if (txRes.data) {
-      setItems(txRes.data.items);
-      setSummary(txRes.data.summary);
-      setHasMore(txRes.data.pagination.hasMore);
+    try {
+      const [txRes, accRes, catRes] = await Promise.all([
+        api.getTransactions(month, year, 1, 50, filters),
+        api.getAccounts(),
+        api.getCategories(),
+      ]);
+      if (txRes.data) {
+        setItems(txRes.data.items);
+        setSummary(txRes.data.summary);
+        setHasMore(txRes.data.pagination.hasMore);
+      }
+      if (accRes.data) setAccounts(accRes.data.items);
+      if (catRes.data) setCategories(catRes.data.items);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Network error";
+      console.error("[TransactionsPage] failed to load data", err);
+      setLoadError(message);
+    } finally {
+      setLoading(false);
     }
-    if (accRes.data) setAccounts(accRes.data.items);
-    if (catRes.data) setCategories(catRes.data.items);
-    setLoading(false);
   }, [month, year, filters]);
 
   useEffect(() => {
@@ -295,6 +306,16 @@ export function TransactionsPage({ month, year, onMonthChange }: { month: number
       <div className={framed ? "w-full md:mx-auto md:max-w-6xl md:px-6 lg:px-8" : "w-full"}>
         <BalanceRibbon summary={summary} />
 
+        <QuickAddBar
+          categories={categories}
+          accounts={accounts}
+          onCreateTransaction={handleCreate}
+          onRefresh={fetchData}
+          defaultAccountId={defaultAccountId}
+          month={month}
+          year={year}
+        />
+
         <TransactionToolbar
           filters={filters}
           onFiltersChange={setFilters}
@@ -309,20 +330,28 @@ export function TransactionsPage({ month, year, onMonthChange }: { month: number
           <div className="px-4 py-12 text-center text-sm text-gray-400 dark:text-gray-500">
             {t("app.loading")}
           </div>
+        ) : loadError ? (
+          <div className="px-4 py-12 text-center text-sm">
+            <p className="mb-3 text-rose-600 dark:text-rose-400">
+              {t("errors.load_failed", { message: loadError })}
+            </p>
+            <button
+              onClick={fetchData}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+            >
+              {t("app.retry")}
+            </button>
+          </div>
         ) : (
           <TransactionGrid
             items={items}
             categories={categories}
             accounts={accounts}
             onTogglePaid={handleTogglePaid}
-            onCreateTransaction={handleCreate}
             onDeleteTransaction={handleDelete}
             onRefresh={fetchData}
-            defaultAccountId={defaultAccountId}
             expandedTxId={expandedTxId}
             onExpandTx={setExpandedTxId}
-            month={month}
-            year={year}
           />
         )}
 

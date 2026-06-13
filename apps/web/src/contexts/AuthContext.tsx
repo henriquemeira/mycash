@@ -23,10 +23,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.me().then(({ data }) => {
-      if (data?.user) setUser(data.user);
-      setLoading(false);
-    });
+    api
+      .me()
+      .then(({ data }) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch((err) => {
+        console.error("[AuthContext] failed to load session", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const login = useCallback(async (email: string, password: string, turnstileToken?: string) => {
