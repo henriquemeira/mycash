@@ -212,6 +212,14 @@ function addMonths(dateStr: string, months: number): string {
   return `${date.getFullYear()}-${mm}-${dd}`;
 }
 
+function recalculateDate(originalDate: string, newDate: string): string {
+  const newDay = parseInt(newDate.split("-")[2], 10);
+  const [y, m] = originalDate.split("-").map(Number);
+  const maxDay = new Date(y, m, 0).getDate();
+  const day = Math.min(newDay, maxDay);
+  return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 txRoutes.post("/", async (c) => {
   const userId = c.get("userId");
   const salt = c.env.HASHIDS_SALT;
@@ -480,41 +488,57 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
 
   if (tx.recurrenceId && scope === "future") {
     const effectiveDueDate = tx.dueDate || tx.date;
-    const conditions = [
-      eq(transactions.recurrenceId, tx.recurrenceId),
-      eq(transactions.userId, userId),
-      gte(transactions.dueDate, effectiveDueDate),
-      isNull(transactions.deletedAt),
-    ];
 
-    const updateData: Record<string, unknown> = {
-      updatedAt: now,
-    };
-    if (body.description !== undefined)
-      updateData.description = body.description;
-    if (body.amount !== undefined) {
-      updateData.amount =
-        body.type === "expense"
-          ? -Math.abs(body.amount)
-          : Math.abs(body.amount);
-    } else if (body.type !== undefined) {
-      updateData.amount =
-        body.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+    const futureTxns = await db
+      .select()
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.recurrenceId, tx.recurrenceId),
+          eq(transactions.userId, userId),
+          gte(transactions.dueDate, effectiveDueDate),
+          isNull(transactions.deletedAt),
+        ),
+      )
+      .orderBy(asc(transactions.dueDate));
+
+    const hasNewDate = body.date !== undefined;
+    const hasNewDueDate = body.dueDate !== undefined;
+
+    for (const futureTx of futureTxns) {
+      const updateData: Record<string, unknown> = {
+        updatedAt: now,
+      };
+      if (body.description !== undefined)
+        updateData.description = body.description;
+      if (body.amount !== undefined) {
+        updateData.amount =
+          body.type === "expense"
+            ? -Math.abs(body.amount)
+            : Math.abs(body.amount);
+      } else if (body.type !== undefined) {
+        updateData.amount =
+          body.type === "expense" ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+      }
+      if (body.type !== undefined) updateData.type = body.type;
+      if (hasNewDate) {
+        updateData.date = recalculateDate(futureTx.date, body.date!);
+      }
+      if (hasNewDueDate && futureTx.dueDate) {
+        updateData.dueDate = recalculateDate(futureTx.dueDate, body.dueDate!);
+      }
+      if (body.notes !== undefined) updateData.notes = body.notes;
+      if (body.reminderDate !== undefined)
+        updateData.reminderDate = body.reminderDate;
+      if (decodedAccountId !== null) updateData.accountId = decodedAccountId;
+      if (decodedCategoryId !== null) updateData.categoryId = decodedCategoryId;
+      if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
+
+      await db
+        .update(transactions)
+        .set(updateData)
+        .where(eq(transactions.id, futureTx.id));
     }
-    if (body.type !== undefined) updateData.type = body.type;
-    if (body.date !== undefined) updateData.date = body.date;
-    if (body.dueDate !== undefined) updateData.dueDate = body.dueDate;
-    if (body.notes !== undefined) updateData.notes = body.notes;
-    if (body.reminderDate !== undefined)
-      updateData.reminderDate = body.reminderDate;
-    if (decodedAccountId !== null) updateData.accountId = decodedAccountId;
-    if (decodedCategoryId !== null) updateData.categoryId = decodedCategoryId;
-    if (body.isPaid !== undefined) updateData.isPaid = body.isPaid;
-
-    await db
-      .update(transactions)
-      .set(updateData)
-      .where(and(...conditions));
 
     return c.json({
       updatedCount: "bulk",
@@ -541,12 +565,6 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
   if (body.notes !== undefined) updateData.notes = body.notes;
   if (body.reminderDate !== undefined)
     updateData.reminderDate = body.reminderDate;
-
-  if (tx.recurrenceId && scope === "single") {
-    updateData.recurrenceId = null;
-    updateData.installmentNumber = null;
-    updateData.totalInstallments = null;
-  }
 
   await db
     .update(transactions)
