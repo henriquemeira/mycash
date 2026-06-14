@@ -220,6 +220,12 @@ function recalculateDate(originalDate: string, newDate: string): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+const INSTALLMENT_SUFFIX_REGEX = /\s*\(\d+\/\d+\)$/;
+
+function stripInstallmentSuffix(description: string): string {
+  return description.replace(INSTALLMENT_SUFFIX_REGEX, "");
+}
+
 txRoutes.post("/", async (c) => {
   const userId = c.get("userId");
   const salt = c.env.HASHIDS_SALT;
@@ -509,8 +515,14 @@ txRoutes.put("/:id", hashidMiddleware, async (c) => {
       const updateData: Record<string, unknown> = {
         updatedAt: now,
       };
-      if (body.description !== undefined)
-        updateData.description = body.description;
+      if (body.description !== undefined) {
+        const newBase = stripInstallmentSuffix(body.description);
+        if (futureTx.installmentNumber && futureTx.totalInstallments) {
+          updateData.description = `${newBase} (${futureTx.installmentNumber}/${futureTx.totalInstallments})`;
+        } else {
+          updateData.description = newBase;
+        }
+      }
       if (body.amount !== undefined) {
         updateData.amount =
           body.type === "expense"
